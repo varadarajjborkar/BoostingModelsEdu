@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Face-off: XGBoost vs LightGBM vs CatBoost · Boosting, Visually</title>
+<meta name="description" content="XGBoost vs LightGBM vs CatBoost: which one to pick, the same knobs under different names, early stopping, and a one-screen cheat sheet.">
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-page="06-faceoff" data-root="../">
+<header id="site-nav"></header>
+
+<main>
+  <section class="wrap hero">
+    <div class="kicker"><span class="dot"></span>Chapter 06 · Face-off</div>
+    <h1>XGBoost, LightGBM, CatBoost: <em>which one?</em></h1>
+    <p class="big-idea">Same engine inside: gradient boosting with trees. Three personalities on the outside. Here is how to pick one in 30 seconds, and how to tune any of them.</p>
+    <div class="meta-row"><span class="pill">≈ 12 min</span><span class="pill">2 things to play with</span><span class="pill">A one-screen cheat sheet at the end</span></div>
+  </section>
+
+  <!-- 1. Personalities -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>Three personalities</h2>
+      <p class="lede">If they were people, this is how they would introduce themselves.</p>
+    </div>
+    <div class="personas">
+      <div class="persona" style="--pc:var(--c1)">
+        <div class="who"><div class="g" data-glyph="03-xgboost"></div><div><h3>XGBoost</h3><div class="tag">"The careful all-rounder"</div></div></div>
+        <ul>
+          <li>Slope + curve for every split, with λ and γ brakes</li>
+          <li>Learns a default path for missing values</li>
+          <li>Many knobs, huge community, runs everywhere</li>
+        </ul>
+        <div class="watch"><b>Watch out:</b> many knobs means more tuning.</div>
+        <div class="sig">signature: level-wise trees + regularized gain</div>
+      </div>
+      <div class="persona" style="--pc:var(--c3)">
+        <div class="who"><div class="g" data-glyph="04-lightgbm"></div><div><h3>LightGBM</h3><div class="tag">"The speedster"</div></div></div>
+        <ul>
+          <li>Buckets instead of exact values</li>
+          <li>Leaf-wise growth: the most useful leaf first</li>
+          <li>GOSS + bundling: less work on big data</li>
+        </ul>
+        <div class="watch"><b>Watch out:</b> can overfit small data. Limit num_leaves.</div>
+        <div class="sig">signature: histogram + leaf-wise trees</div>
+      </div>
+      <div class="persona" style="--pc:var(--c2)">
+        <div class="who"><div class="g" data-glyph="05-catboost"></div><div><h3>CatBoost</h3><div class="tag">"The category whisperer"</div></div></div>
+        <ul>
+          <li>Word columns without leaking answers</li>
+          <li>Symmetric trees: steady, fast to predict</li>
+          <li>Very good with default settings</li>
+        </ul>
+        <div class="watch"><b>Watch out:</b> training can be slower on big numeric data.</div>
+        <div class="sig">signature: ordered target statistics + symmetric trees</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Pick -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>Pick your booster in 30 seconds</h2>
+      <p class="lede">Answer three questions about your data. This is a starting point, not a law.</p>
+    </div>
+    <div class="viz" id="pk-viz">
+      <div class="grid-2">
+        <div>
+          <div class="pick-q"><span>Lots of word columns (city, brand, ids)?</span><span class="seg" id="pk-q1"><button data-v="0" class="on" type="button">no</button><button data-v="1" type="button">yes</button></span></div>
+          <div class="pick-q"><span>Huge data, or training must be very fast?</span><span class="seg" id="pk-q2"><button data-v="0" class="on" type="button">no</button><button data-v="1" type="button">yes</button></span></div>
+          <div class="pick-q"><span>Little time to tune settings?</span><span class="seg" id="pk-q3"><button data-v="0" class="on" type="button">no</button><button data-v="1" type="button">yes</button></span></div>
+        </div>
+        <div>
+          <div class="panel-title">How well each one fits your answers</div>
+          <div id="pk-bars"></div>
+          <p class="say-live" id="pk-result"></p>
+        </div>
+      </div>
+    </div>
+    <div class="note green"><span class="ic">🤝</span><span><b>Honest tip:</b> on most tables of data, all three end up close. When in doubt, try two of them with early stopping and keep the one with the better validation score.</span></div>
+  </section>
+
+  <!-- 3. Side by side -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>Side by side</h2>
+      <p class="lede">Everything from the last three chapters, in one table.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="t">
+        <thead><tr><th></th><th><i class="sw-dot" style="background:var(--c1)"></i>XGBoost</th><th><i class="sw-dot" style="background:var(--c3)"></i>LightGBM</th><th><i class="sw-dot" style="background:var(--c2)"></i>CatBoost</th></tr></thead>
+        <tbody>
+          <tr><td><b>Tree shape</b></td><td>level by level, limited by depth</td><td>leaf-wise: best leaf first</td><td>symmetric: one question per level</td></tr>
+          <tr><td><b>Finding splits</b></td><td>exact, or buckets (<code>tree_method="hist"</code>)</td><td>buckets (histograms)</td><td>buckets + one shared question per level</td></tr>
+          <tr><td><b>Word columns</b></td><td>encode yourself, or <code>enable_categorical=True</code></td><td>native, with pandas category type</td><td>best: ordered target statistics</td></tr>
+          <tr><td><b>Missing values</b></td><td>learns a default path</td><td>learns a default path</td><td>handled (treated as the smallest value by default)</td></tr>
+          <tr><td><b>Speed on big data</b></td><td>fast</td><td>fastest to train</td><td>slower to train, very fast to predict</td></tr>
+          <tr><td><b>With default settings</b></td><td>good</td><td>good (check num_leaves)</td><td>often the best</td></tr>
+          <tr><td><b>Overfitting on small data</b></td><td>medium risk</td><td>higher risk (lopsided trees)</td><td>lower risk</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 4. Translator -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>Same knobs, different names</h2>
+      <p class="lede">Learn the idea once. Then just look up what each library calls it.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="t">
+        <thead><tr><th>The idea</th><th>XGBoost</th><th>LightGBM</th><th>CatBoost</th></tr></thead>
+        <tbody>
+          <tr><td>How many trees</td><td><code>n_estimators</code></td><td><code>n_estimators</code></td><td><code>iterations</code></td></tr>
+          <tr><td>Step size (shot strength)</td><td><code>learning_rate</code> (eta)</td><td><code>learning_rate</code></td><td><code>learning_rate</code></td></tr>
+          <tr><td>How big each tree is</td><td><code>max_depth</code></td><td><code>num_leaves</code> (+ <code>max_depth</code>)</td><td><code>depth</code></td></tr>
+          <tr><td>Brake on leaf values (λ)</td><td><code>reg_lambda</code></td><td><code>reg_lambda</code></td><td><code>l2_leaf_reg</code></td></tr>
+          <tr><td>Fee for a split (γ)</td><td><code>gamma</code></td><td><code>min_split_gain</code></td><td>no direct twin: use depth and l2_leaf_reg</td></tr>
+          <tr><td>Smallest allowed leaf</td><td><code>min_child_weight</code></td><td><code>min_child_samples</code></td><td><code>min_data_in_leaf</code> (non-symmetric trees only)</td></tr>
+          <tr><td>Use a random part of the rows</td><td><code>subsample</code></td><td><code>subsample</code> + <code>subsample_freq</code></td><td><code>subsample</code></td></tr>
+          <tr><td>Use a random part of the columns</td><td><code>colsample_bytree</code></td><td><code>colsample_bytree</code></td><td><code>rsm</code></td></tr>
+          <tr><td>Stop when validation stops improving</td><td><code>early_stopping_rounds</code></td><td><code>lgb.early_stopping(n)</code> callback</td><td><code>early_stopping_rounds</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 5. Early stopping -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2>Tuning, visually: when to stop</h2>
+      <p class="lede">The one habit that matters most for all three: watch the error on <mark>validation data</mark> (data the model never trains on), and stop at its lowest point.</p>
+    </div>
+    <div class="viz" id="es-viz">
+      <div class="controls">
+        <label class="ctrl">Learning rate <input type="range" id="es-lr" min="5" max="100" step="5" value="10"><output for="es-lr"></output></label>
+        <label class="ctrl">Tree depth <input type="range" id="es-depth" min="1" max="5" step="1" value="3"><output for="es-depth"></output></label>
+      </div>
+      <div class="plot"></div>
+      <div class="legend">
+        <span><i class="ln" style="background:var(--ink-2)"></i>error on training data</span>
+        <span><i class="ln" style="background:var(--c3)"></i>error on validation data</span>
+        <span><i class="ln" style="background:var(--good)"></i>early stopping point</span>
+      </div>
+      <div class="stats">
+        <div class="stat good"><div class="k">Best number of trees</div><div class="v" id="es-best">0</div></div>
+        <div class="stat"><div class="k">Validation error there</div><div class="v" id="es-err">0</div></div>
+        <div class="stat"><div class="k">Validation error at 200 trees</div><div class="v" id="es-end">0</div></div>
+      </div>
+      <p class="say-live" id="es-say"></p>
+    </div>
+    <div class="flow" style="--n:4;margin-top:20px">
+      <div class="step"><b>Split your data</b><span>Train on one part, validate on another. Never peek at the test part.</span></div>
+      <div class="step"><b>Small learning rate</b><span>0.03 to 0.1 is a safe start. Many trees are fine.</span></div>
+      <div class="step"><b>Early stopping</b><span>Let validation error pick the number of trees for you.</span></div>
+      <div class="step"><b>Then tune size</b><span>Tree size, leaf brake, and row/column sampling, one at a time.</span></div>
+    </div>
+  </section>
+
+  <!-- 6. Cheat sheet -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2>The whole course on one screen</h2>
+      <p class="lede">Come back here to revise. One line and one formula per idea.</p>
+    </div>
+    <div class="cheats">
+      <a class="cheat" href="00-warmup.html"><div class="g" data-glyph="00-warmup"></div><div><b>Trees</b><span>Yes/no questions; keep the least mixed split.</span><div class="f">Gini = 2p(1 − p)</div></div></a>
+      <a class="cheat" href="01-adaboost.html"><div class="g" data-glyph="01-adaboost"></div><div><b>AdaBoost</b><span>Missed dots get heavier; good helpers vote louder.</span><div class="f">α = ½ ln((1 − ε) / ε)</div></div></a>
+      <a class="cheat" href="02-gradient-boosting.html"><div class="g" data-glyph="02-gradient-boosting"></div><div><b>Gradient Boosting</b><span>Each tree learns the leftover (the downhill direction).</span><div class="f">F ← F + ν · tree(leftovers)</div></div></a>
+      <a class="cheat" href="03-xgboost.html"><div class="g" data-glyph="03-xgboost"></div><div><b>XGBoost</b><span>Slope + curve, gain scorecard, λ brake, γ fee.</span><div class="f">w = −G / (H + λ)</div></div></a>
+      <a class="cheat" href="04-lightgbm.html"><div class="g" data-glyph="04-lightgbm"></div><div><b>LightGBM</b><span>Buckets, leaf-wise growth, GOSS, bundling.</span><div class="f">split the leaf with max gain</div></div></a>
+      <a class="cheat" href="05-catboost.html"><div class="g" data-glyph="05-catboost"></div><div><b>CatBoost</b><span>Categories from rows ahead only; symmetric trees.</span><div class="f">(sum ahead + a·p) / (count ahead + a)</div></div></a>
+    </div>
+  </section>
+
+  <!-- Under the hood -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">Hood</span>
+      <h2>Under the hood</h2>
+      <p class="lede">The shared math, a fair way to compare, and all three libraries in one script.</p>
+    </div>
+    <div class="hood" data-tabs>
+      <div class="tabs"><button class="tab" type="button">The shared math</button><button class="tab" type="button">How to compare fairly</button><button class="tab" type="button">All three in code</button></div>
+
+      <div class="tab-panel">
+        <h4>All three build the same kind of team</h4>
+        <div class="eq">$$F_M(x) = F_0 + \nu \sum_{m=1}^{M} h_m(x)$$</div>
+        <p class="say"><b>Say it:</b> start from a first guess, then add many small trees, each shrunk by the learning rate $\nu$.</p>
+        <h4>All three pick leaf values the same way</h4>
+        <div class="eq">$$w_j = -\frac{G_j}{H_j + \lambda}$$</div>
+        <p class="say"><b>Say it:</b> slopes and curves of the dots in the leaf, with a brake. The differences are <i>which</i> trees they build and <i>how fast</i>, not this formula.</p>
+      </div>
+
+      <div class="tab-panel">
+<pre class="pseudo"><b>to compare boosters fairly</b>:
+
+  <i>Step 1. Same data, same split</i>
+     split once into train / validation / test, and reuse it for everyone
+
+  <i>Step 2. Same rules</i>
+     same learning rate (e.g. 0.05), early stopping on the validation part
+     similar tree size (depth 6 ≈ 64 leaves ≈ num_leaves 63)
+
+  <i>Step 3. Score on data nobody tuned on</i>
+     report the <u>test</u> score once, at the very end
+
+  <i>Step 4. Look beyond the score</i>
+     training time, prediction time, how much tuning it needed</pre>
+      </div>
+
+      <div class="tab-panel">
+<pre class="code"><code class="language-python"># pip install xgboost lightgbm catboost scikit-learn
+from sklearn.datasets import make_classification
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score
+import xgboost as xgb
+import lightgbm as lgb
+from catboost import CatBoostClassifier
+
+X, y = make_classification(n_samples=20000, n_features=20, n_informative=8, random_state=0)
+X_train, X_rest, y_train, y_rest = train_test_split(X, y, test_size=0.4, random_state=0)
+X_valid, X_test, y_valid, y_test = train_test_split(X_rest, y_rest, test_size=0.5, random_state=0)
+
+models = {
+    "XGBoost": xgb.XGBClassifier(n_estimators=2000, learning_rate=0.05, max_depth=6,
+                                 tree_method="hist", early_stopping_rounds=100),
+    "LightGBM": lgb.LGBMClassifier(n_estimators=2000, learning_rate=0.05, num_leaves=63, verbose=-1),
+    "CatBoost": CatBoostClassifier(iterations=2000, learning_rate=0.05, depth=6,
+                                   early_stopping_rounds=100, verbose=0),
+}
+
+for name, model in models.items():
+    if name == "LightGBM":
+        model.fit(X_train, y_train, eval_set=[(X_valid, y_valid)],
+                  callbacks=[lgb.early_stopping(100, verbose=False)])
+    elif name == "XGBoost":
+        model.fit(X_train, y_train, eval_set=[(X_valid, y_valid)], verbose=False)
+    else:
+        model.fit(X_train, y_train, eval_set=(X_valid, y_valid))
+    auc = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
+    print(f"{name:9}  test AUC = {auc:.4f}")</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Remember + quiz -->
+  <section class="sec wrap">
+    <div class="remember">
+      <h3>Remember it</h3>
+      <ol>
+        <li>Same engine. Differences: tree shape, speed tricks, word columns.</li>
+        <li>Word columns → CatBoost. Huge data → LightGBM. All-rounder → XGBoost.</li>
+        <li>Always: validation data + early stopping. Then tune tree size.</li>
+      </ol>
+    </div>
+    <div class="quiz-list">
+      <div class="quiz" data-answer="2">
+        <div class="q">Your data has 20 columns of shop names and brands, and you have little time to tune. First pick?</div>
+        <div class="opts"><button class="opt" type="button">XGBoost</button><button class="opt" type="button">LightGBM</button><button class="opt" type="button">CatBoost</button></div>
+        <p class="why">Word-heavy data plus strong defaults is exactly CatBoost's home ground.</p>
+      </div>
+      <div class="quiz" data-answer="1">
+        <div class="q">Which one grows trees leaf-wise by default?</div>
+        <div class="opts"><button class="opt" type="button">XGBoost</button><button class="opt" type="button">LightGBM</button><button class="opt" type="button">CatBoost</button></div>
+        <p class="why">LightGBM always splits the most useful leaf next. That is also why num_leaves is its main knob.</p>
+      </div>
+      <div class="quiz" data-answer="0">
+        <div class="q">Validation error starts rising after 300 trees, while training error keeps falling. What should you do?</div>
+        <div class="opts"><button class="opt" type="button">Stop near the lowest validation point (early stopping)</button><button class="opt" type="button">Add 1,000 more trees</button><button class="opt" type="button">Raise the learning rate</button></div>
+        <p class="why">Rising validation error means the extra trees are memorizing noise.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav id="pager"></nav>
+<footer id="site-foot"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="../assets/js/viz.js"></script>
+<script src="../assets/js/ml.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/glyphs.js"></script>
+<script src="../assets/js/pages/faceoff.js"></script>
+</body>
+</html>

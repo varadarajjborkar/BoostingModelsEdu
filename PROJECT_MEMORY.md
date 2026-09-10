@@ -135,7 +135,9 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
 - `pages/05-catboost.html`
 - `pages/06-faceoff.html`: comparison, cheat-sheet, "which one to pick", tuning viz
 - `assets/css/style.css`, `assets/js/common.js`, `assets/js/viz.js`, `assets/js/ml.js`,
+  `assets/js/glyphs.js` (chapter icons `GLYPHS[slug]`, load after common.js),
   `assets/js/pages/*.js` (one per page)
+- `README.md`: run locally, deploy on Vercel, Python classes, layout (not deployed)
 - `code/*.py`: runnable from-scratch implementations (`decision_tree.py` done)
 - `tools/embed_code.py`
 
@@ -153,7 +155,9 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
   GOSS bars, EFB table, lightgbm_lite.py)
 - [x] Phase 7: CatBoost (waiting-line metaphor, leak simulation, queue stepper table `#qu=N`,
   symmetric tree toggles, catboost_lite.py)
-- [ ] Phase 8: Face-off / comparison
+- [ ] Phase 8: Face-off (written: personas, pick-your-booster helper, side-by-side + knob translator
+  tables, early stopping viz, one-screen cheat sheet; chapter icons moved to `assets/js/glyphs.js`
+  and used by home.js too; README.md written; screenshot check, then commit)
 - [ ] Phase 9: polish, screenshot check, README
 
 ## How to verify

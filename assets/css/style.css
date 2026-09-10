@@ -362,6 +362,36 @@ table.qt tr.active td { background: var(--c4-wash); font-weight: 600; }
 .chip.c { background: var(--c3-wash); border-color: var(--c3); }
 .formula { font: 500 15px var(--mono); background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 14px; margin-top: 10px; overflow-x: auto; }
 
+/* ---------- Face-off page ---------- */
+.personas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media (max-width: 860px) { .personas { grid-template-columns: 1fr; } }
+.persona {
+  background: var(--card); border: 1px solid var(--rule); border-top: 4px solid var(--pc, var(--c1));
+  border-radius: var(--r); padding: 18px 20px; box-shadow: var(--shadow);
+}
+.persona .who { display: flex; align-items: center; gap: 12px; }
+.persona .g, .cheat .g { width: 64px; height: 48px; flex: none; background: var(--paper); border-radius: 10px; display: grid; place-items: center; }
+.persona .g svg, .cheat .g svg { width: 54px; height: 40px; }
+.persona h3 { font-size: 22px; margin: 0; }
+.persona .tag { font-size: 14px; color: var(--ink-2); font-style: italic; }
+.persona ul { margin: 14px 0 0; padding-left: 18px; font-size: 14.5px; color: var(--ink-2); }
+.persona li { margin-bottom: 5px; }
+.persona .watch { margin-top: 12px; font-size: 14px; background: var(--c4-wash); border-radius: 8px; padding: 8px 10px; color: var(--ink-2); }
+.persona .sig { margin-top: 10px; font: 500 12px var(--mono); color: var(--muted); }
+.pick-q { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--rule); font-size: 15.5px; }
+.pick-q:last-child { border-bottom: 0; }
+.sw-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
+.cheats { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.cheat {
+  display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: start;
+  background: var(--card); border: 1px solid var(--rule); border-radius: 14px; padding: 14px 16px;
+  text-decoration: none; color: var(--ink); transition: border-color .15s, transform .15s;
+}
+.cheat:hover { border-color: var(--ink-2); transform: translateY(-1px); }
+.cheat b { display: block; font-size: 15.5px; }
+.cheat span { display: block; font-size: 14px; color: var(--ink-2); line-height: 1.45; margin-top: 2px; }
+.cheat .f { display: inline-block; font: 12.5px var(--mono); color: var(--ink); margin-top: 8px; background: var(--paper); padding: 4px 8px; border-radius: 6px; }
+
 /* ---------- Pager & footer ---------- */
 .pager { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-block: 44px 16px; }
 .pager a {
