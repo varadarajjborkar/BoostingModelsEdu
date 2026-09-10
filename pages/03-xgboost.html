@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XGBoost · Boosting, Visually</title>
+<meta name="description" content="XGBoost explained with pictures: slope and curve, the split scorecard, lambda and gamma brakes, missing values.">
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-page="03-xgboost" data-root="../">
+<header id="site-nav"></header>
+
+<main>
+  <section class="wrap hero">
+    <div class="kicker"><span class="dot"></span>Chapter 03 · XGBoost</div>
+    <h1>XGBoost: boosting with <em>brakes</em></h1>
+    <p class="big-idea">The same recipe as gradient boosting, with three upgrades: it feels how curved the bowl is, it scores every split with a clear scorecard, and it charges a fee for every branch.</p>
+    <div class="meta-row"><span class="pill">≈ 20 min</span><span class="pill">4 things to play with</span><span class="pill">★ Core model</span></div>
+  </section>
+
+  <!-- Metaphor -->
+  <section class="wrap" style="padding-bottom:40px">
+    <div class="metaphor">
+      <div class="art">
+        <svg viewBox="0 0 240 170" role="img" aria-label="A hiker who feels the slope and the curve jumps straight toward the valley floor">
+          <path d="M10,20 C60,150 170,150 230,30" fill="none" stroke="var(--ink-2)" stroke-width="2.5"/>
+          <path d="M22,48 Q60,160 128,120" fill="none" stroke="var(--c1)" stroke-width="1.5" stroke-opacity=".6"/>
+          <circle cx="30" cy="58" r="7" fill="var(--c2)"/>
+          <path d="M34,50 Q80,20 116,112" fill="none" stroke="var(--c1)" stroke-width="2"/>
+          <path d="M111,104 L117,114 L120,102" fill="none" stroke="var(--c1)" stroke-width="2"/>
+          <circle cx="120" cy="122" r="5" fill="var(--c1)"/>
+          <g font-family="Inter, sans-serif" font-size="10.5" fill="var(--ink-2)">
+            <text x="42" y="78">slope + curve</text>
+            <text x="78" y="36">one smart jump</text>
+          </g>
+          <rect x="150" y="128" width="78" height="30" rx="8" fill="var(--c4-wash)" stroke="var(--c4)"/>
+          <text x="189" y="140" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="var(--ink)">λ brake</text>
+          <text x="189" y="152" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="var(--ink)">γ fee per branch</text>
+        </svg>
+      </div>
+      <div>
+        <div class="label">Picture this</div>
+        <h3>The careful hiker</h3>
+        <p>A normal hiker only feels which way is downhill, and takes a fixed-size step. The careful hiker also feels <b>how curved</b> the ground is, so they know how far to step. They also carry two rules: <b>brake</b> before big jumps, and <b>pay a fee</b> for every new path they open.</p>
+        <div class="story-map">
+          <span class="s">Which way is downhill</span><span class="arrow">→</span><span class="m">gradient g (slope)</span>
+          <span class="s">How curved the ground is</span><span class="arrow">→</span><span class="m">hessian h (curve)</span>
+          <span class="s">How far to step</span><span class="arrow">→</span><span class="m">leaf value w = −G / (H + λ)</span>
+          <span class="s">The brake</span><span class="arrow">→</span><span class="m">λ (lambda)</span>
+          <span class="s">Fee for a new path</span><span class="arrow">→</span><span class="m">γ (gamma)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1. Newton -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>Slope + curve = smarter steps</h2>
+      <p class="lede">Two walkers try to reach the bottom. One only knows the slope. The other also knows the <mark>curve</mark>, so it jumps to the bottom of a matching bowl.</p>
+    </div>
+    <div class="viz" id="nt-viz">
+      <div class="viz-top">
+        <span class="viz-title">This bowl is the loss of one leaf with 3 "yes" dots and 1 "no" dot</span>
+        <span class="viz-hint">press Step a few times</span>
+      </div>
+      <div class="controls">
+        <div class="btn-row">
+          <button class="btn primary" data-act="step" type="button">Step →</button>
+          <button class="btn" data-act="play" type="button">▶ Play</button>
+          <button class="btn" data-act="reset" type="button">Reset</button>
+        </div>
+        <label class="ctrl">Brake λ <input type="range" id="nt-lam" min="0" max="8" step="0.5" value="0"><output for="nt-lam"></output></label>
+      </div>
+      <div class="grid-2-1">
+        <div class="plot"></div>
+        <div>
+          <div class="stats two" style="margin-top:0">
+            <div class="stat"><div class="k">Slope-only: distance left</div><div class="v" id="nt-gd">0</div></div>
+            <div class="stat good"><div class="k">Slope + curve: distance left</div><div class="v" id="nt-nw">0</div></div>
+          </div>
+          <p class="say-live" id="nt-say"></p>
+          <div class="legend">
+            <span><i class="ln" style="background:var(--ink-2)"></i>the loss bowl</span>
+            <span><i class="sw" style="background:var(--c2)"></i>slope-only walker</span>
+            <span><i class="sw" style="background:var(--c1)"></i>slope + curve walker</span>
+            <span><i class="ln" style="background:var(--c1);opacity:.45"></i>matching bowl it jumps into</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note green"><span class="ic">🎯</span><span><b>This jump is exactly how XGBoost picks a leaf's value:</b> w = −G / (H + λ). G adds up the slopes of the dots in the leaf, H adds up their curves. Turn up λ and the jump gets shorter. That is the brake.</span></div>
+  </section>
+
+  <!-- 2. Scorecard -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>The split scorecard</h2>
+      <p class="lede">XGBoost scores every possible cut with one simple number: the <mark>gain</mark>. Pick a cut, then play with the brake λ and the fee γ.</p>
+    </div>
+    <div class="viz" id="sc-viz">
+      <div class="viz-top">
+        <span class="viz-title">8 dots and their leftovers. Click or drag to choose where to cut.</span>
+        <span class="viz-hint">squared error, so every dot has curve h = 1</span>
+      </div>
+      <div class="controls">
+        <label class="ctrl">Brake λ <input type="range" id="sc-lam" min="0" max="10" step="0.5" value="1"><output for="sc-lam"></output></label>
+        <label class="ctrl">Fee γ <input type="range" id="sc-gam" min="0" max="60" step="1" value="0"><output for="sc-gam"></output></label>
+        <button class="btn" id="sc-best" type="button">Jump to best cut</button>
+      </div>
+      <div class="grid-2">
+        <div>
+          <div class="panel-title">Leftovers (bars) and your cut</div>
+          <div id="sc-plot"></div>
+          <div class="panel-title" style="margin-top:8px">Gain of every possible cut</div>
+          <div id="sc-gains"></div>
+        </div>
+        <div>
+          <div class="panel-title">The tree this cut makes</div>
+          <div id="sc-tree"></div>
+          <p class="say-live" id="sc-say"></p>
+        </div>
+      </div>
+    </div>
+    <div class="flow" style="--n:3;margin-top:20px">
+      <div class="step"><b>Similarity</b><span>(sum of leftovers)² ÷ (count + λ). High when the dots agree with each other.</span></div>
+      <div class="step"><b>Gain</b><span>similarity left + similarity right − similarity before the cut.</span></div>
+      <div class="step"><b>Keep or prune</b><span>Keep the split only if gain &gt; γ. Otherwise it is cut off.</span></div>
+    </div>
+  </section>
+
+  <!-- 3. Whole tree pruning -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>Watch a whole tree get pruned</h2>
+      <p class="lede">A real depth-3 XGBoost tree on 30 dots. Raise γ and weak branches fall off. Raise λ and every leaf value shrinks toward 0.</p>
+    </div>
+    <div class="viz" id="pr-viz">
+      <div class="controls">
+        <label class="ctrl">Brake λ <input type="range" id="pr-lam" min="0" max="20" step="1" value="1"><output for="pr-lam"></output></label>
+        <label class="ctrl">Fee γ <input type="range" id="pr-gam" min="0" max="30" step="0.5" value="0"><output for="pr-gam"></output></label>
+      </div>
+      <div class="grid-2">
+        <div>
+          <div class="panel-title">The tree (faded = pruned)</div>
+          <div id="pr-tree"></div>
+        </div>
+        <div>
+          <div class="panel-title">What this tree adds to each dot's guess</div>
+          <div id="pr-fit"></div>
+          <div class="stats two">
+            <div class="stat"><div class="k">Leaves</div><div class="v" id="pr-leaves">0</div></div>
+            <div class="stat"><div class="k">Splits pruned</div><div class="v" id="pr-pruned">0</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Missing values -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>Missing values? It learns a default path</h2>
+      <p class="lede">Some dots have no value for this feature. XGBoost tries sending them <mark>left</mark>, then <mark>right</mark>, and keeps whichever gives more gain.</p>
+    </div>
+    <div class="viz" id="ms-viz">
+      <div class="panel-title">Known dots on the number line, and 3 dots with a missing value (?)</div>
+      <div id="ms-line"></div>
+      <div class="grid-2" style="margin-top:10px">
+        <div id="ms-left"></div>
+        <div id="ms-right"></div>
+      </div>
+      <p class="say-live" id="ms-say"></p>
+    </div>
+  </section>
+
+  <!-- 5. Speed -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2>Why it is fast</h2>
+      <p class="lede">The math above makes it smart. These engineering tricks make it quick.</p>
+    </div>
+    <div class="tiles">
+      <div class="tile"><span class="ic">📏</span><b>Only a few cuts</b><span>Tries a handful of percentile cut points (the "quantile sketch") instead of every single value.</span></div>
+      <div class="tile"><span class="ic">🗂️</span><b>Sort once</b><span>Each column is sorted once and stored in blocks, then reused by every tree.</span></div>
+      <div class="tile"><span class="ic">⚙️</span><b>Many cores at once</b><span>Different features are checked in parallel on different CPU cores (or on a GPU).</span></div>
+      <div class="tile"><span class="ic">🕳️</span><b>Skips empty cells</b><span>Sparse data (lots of zeros or blanks) is handled by the default-path trick above.</span></div>
+    </div>
+  </section>
+
+  <!-- Under the hood -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">Hood</span>
+      <h2>Under the hood</h2>
+      <p class="lede">The one page of math behind XGBoost, with "say it" lines.</p>
+    </div>
+    <div class="hood" data-tabs>
+      <div class="tabs"><button class="tab" type="button">Math</button><button class="tab" type="button">Pseudo-code</button><button class="tab" type="button">Python (from scratch)</button><button class="tab" type="button">Using the library</button></div>
+
+      <div class="tab-panel">
+        <h4>1 · What XGBoost tries to make small</h4>
+        <div class="eq">$$\text{Obj} = \sum_{i} l(y_i, \hat{y}_i) + \sum_{k} \Omega(f_k), \qquad \Omega(f) = \gamma T + \tfrac{1}{2}\lambda \sum_{j=1}^{T} w_j^2$$</div>
+        <p class="say"><b>Say it:</b> mistakes, plus a fee $\gamma$ for every leaf ($T$ = number of leaves), plus a brake $\lambda$ on big leaf values $w$.</p>
+        <h4>2 · Slope and curve (a second-order look)</h4>
+        <div class="eq">$$\text{Obj}^{(t)} \approx \sum_{i} \Big[\, g_i\, f_t(x_i) + \tfrac{1}{2} h_i\, f_t(x_i)^2 \Big] + \Omega(f_t), \qquad g_i = \frac{\partial l}{\partial \hat{y}_i},\ \ h_i = \frac{\partial^2 l}{\partial \hat{y}_i^2}$$</div>
+        <p class="say"><b>Say it:</b> near the current guess, every dot's loss looks like a little bowl with slope $g_i$ and curve $h_i$.</p>
+        <h4>3 · The best value for a leaf</h4>
+        <div class="eq">$$w_j^{*} = -\frac{G_j}{H_j + \lambda}, \qquad G_j = \sum_{i \in \text{leaf } j} g_i, \quad H_j = \sum_{i \in \text{leaf } j} h_i$$</div>
+        <p class="say"><b>Say it:</b> jump to the bottom of the leaf's bowl. $\lambda$ makes the jump shorter.</p>
+        <h4>4 · The gain of a split</h4>
+        <div class="eq">$$\text{Gain} = \frac{G_L^2}{H_L + \lambda} + \frac{G_R^2}{H_R + \lambda} - \frac{(G_L + G_R)^2}{H_L + H_R + \lambda}, \qquad \text{keep the split if Gain} > \gamma$$</div>
+        <p class="say"><b>Say it:</b> similarity of the left group, plus the right group, minus the group before the cut. (The paper writes a ½ in front and subtracts γ; the library code drops the ½. Same idea.)</p>
+        <h4>5 · Slope and curve for common losses</h4>
+        <div class="table-wrap">
+          <table class="t">
+            <thead><tr><th>Loss</th><th>slope $g$</th><th>curve $h$</th></tr></thead>
+            <tbody>
+              <tr><td>Squared error (numbers)</td><td>$\hat{y} - y$</td><td>$1$</td></tr>
+              <tr><td>Log-loss (yes/no), $p = \sigma(\hat{y})$</td><td>$p - y$</td><td>$p\,(1-p)$</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-panel">
+<pre class="pseudo"><b>to train XGBoost</b>:
+
+  guess = a starting value                 <i>(the average, or a 50% chance)</i>
+
+  <b>repeat</b> for each tree:
+     <i>Step 1. Slope and curve for every dot</i>
+        g = slope of the loss at the current guess
+        h = curve of the loss at the current guess
+
+     <i>Step 2. Grow a tree with the scorecard</i>
+        similarity(group) = (sum of g)² / (sum of h + λ)
+        gain = similarity(left) + similarity(right) - similarity(parent)
+        at every node, keep the cut with the <u>biggest gain</u>
+
+     <i>Step 3. Prune</i>
+        from the bottom up: remove any split whose gain &lt; γ   <i>(the fee)</i>
+
+     <i>Step 4. Leaf values, then a small step</i>
+        leaf value = - (sum of g) / (sum of h + λ)
+        guess = guess + learning_rate × tree(x)</pre>
+      </div>
+
+      <div class="tab-panel">
+        <p class="muted" style="font-size:14.5px">Runnable with just numpy. File: <code>code/xgboost_lite.py</code></p>
+        <!-- CODE:xgboost_lite.py -->
+<pre class="code"><code class="language-python">"""
+XGBoost's core idea, built from scratch ("lite": the ideas, not the speed).
+
+The idea (same as on the page):
+    It is gradient boosting, plus three upgrades.
+    1. For every dot it measures the SLOPE (g) and the CURVE (h) of the loss.
+       Knowing the curve tells it HOW FAR to step, not just which way.
+    2. It judges every possible split with a scorecard:
+           similarity = (sum of g)^2 / (sum of h + lambda)
+           gain       = similarity(left) + similarity(right) - similarity(parent)
+    3. It has brakes:
+           lambda  shrinks every leaf value  (no wild jumps)
+           gamma   is an entry fee: a split whose gain is below gamma gets pruned
+
+Needs only numpy.   Run it with:   python xgboost_lite.py
+"""
+import numpy as np
+
+
+# ------------------------------------------------------------------ the losses
+# For each loss we need two things at the current guess: its slope (g) and its curve (h).
+
+def squared_loss_slope_and_curve(y, guess):
+    g = guess - y                          # slope of  0.5 * (guess - y)^2
+    h = np.ones_like(y)                    # the curve is the same everywhere: 1
+    return g, h
+
+
+def logistic_loss_slope_and_curve(y, raw_score):
+    p = 1 / (1 + np.exp(-raw_score))       # turn the raw score into a chance between 0 and 1
+    g = p - y                              # slope
+    h = p * (1 - p)                        # curve: biggest when p is near 0.5 (most unsure)
+    return g, h
+
+
+def count_leaves(node):
+    if "left" not in node:
+        return 1
+    return count_leaves(node["left"]) + count_leaves(node["right"])
+
+
+class XGBTree:
+    """One tree, grown with the similarity / gain scorecard, then pruned."""
+
+    def __init__(self, max_depth=3, lam=1.0, gamma=0.0, min_child_weight=1.0, n_cuts=32):
+        self.max_depth = max_depth
+        self.lam = lam                             # lambda: the brake
+        self.gamma = gamma                         # gamma: the entry fee for every split
+        self.min_child_weight = min_child_weight   # each side needs at least this much "curve"
+        self.n_cuts = n_cuts                       # speed trick: only try this many cuts per feature
+
+    def similarity(self, g, h):
+        return np.sum(g) ** 2 / (np.sum(h) + self.lam)
+
+    def leaf_value(self, g, h):
+        return -np.sum(g) / (np.sum(h) + self.lam)
+
+    def fit(self, X, g, h):
+        self.root = self.grow(np.asarray(X, dtype=float), g, h, depth=0)
+        self.prune(self.root)
+        return self
+
+    def candidate_cuts(self, column):
+        """XGBoost trick: do not try every value, only a few percentiles."""
+        percentiles = np.linspace(0, 100, self.n_cuts + 2)[1:-1]
+        return np.unique(np.percentile(column, percentiles))
+
+    def grow(self, X, g, h, depth):
+        node = {"value": self.leaf_value(g, h)}          # the answer if this stays a leaf
+        if depth == self.max_depth or len(g) &lt; 2:
+            return node
+
+        parent_score = self.similarity(g, h)
+        best = None
+        for feature in range(X.shape[1]):
+            for threshold in self.candidate_cuts(X[:, feature]):
+                left = X[:, feature] &lt;= threshold
+                if h[left].sum() &lt; self.min_child_weight or h[~left].sum() &lt; self.min_child_weight:
+                    continue                             # one side would be too small
+                gain = self.similarity(g[left], h[left]) + self.similarity(g[~left], h[~left]) - parent_score
+                if best is None or gain &gt; best[0]:
+                    best = (gain, feature, threshold)
+
+        if best is None or best[0] &lt;= 0:
+            return node
+
+        gain, feature, threshold = best
+        left = X[:, feature] &lt;= threshold
+        node["gain"] = gain
+        node["feature"] = feature
+        node["threshold"] = threshold
+        node["left"] = self.grow(X[left], g[left], h[left], depth + 1)
+        node["right"] = self.grow(X[~left], g[~left], h[~left], depth + 1)
+        return node
+
+    def prune(self, node):
+        """Walk from the bottom up. A split that did not earn its entry fee is cut off."""
+        if "left" not in node:
+            return
+        self.prune(node["left"])
+        self.prune(node["right"])
+        children_are_leaves = "left" not in node["left"] and "left" not in node["right"]
+        if children_are_leaves and node["gain"] &lt; self.gamma:
+            for key in ("left", "right", "feature", "threshold", "gain"):
+                del node[key]                            # now this node is a leaf again
+
+    def predict_one(self, x):
+        node = self.root
+        while "left" in node:
+            node = node["left"] if x[node["feature"]] &lt;= node["threshold"] else node["right"]
+        return node["value"]
+
+    def predict(self, X):
+        return np.array([self.predict_one(x) for x in np.asarray(X, dtype=float)])
+
+
+class XGBoostLite:
+    def __init__(self, n_trees=50, learning_rate=0.3, max_depth=3, lam=1.0, gamma=0.0, loss="squared"):
+        self.n_trees = n_trees
+        self.learning_rate = learning_rate
+        self.tree_settings = dict(max_depth=max_depth, lam=lam, gamma=gamma)
+        self.loss = loss                                 # "squared" (numbers) or "logistic" (yes/no)
+
+    def slope_and_curve(self, y, guess):
+        if self.loss == "squared":
+            return squared_loss_slope_and_curve(y, guess)
+        return logistic_loss_slope_and_curve(y, guess)
+
+    def fit(self, X, y):
+        X = np.asarray(X, dtype=float)
+        y = np.asarray(y, dtype=float)
+
+        # Step 0: a starting guess (for yes/no, a raw score of 0 means a 50% chance)
+        self.start = np.mean(y) if self.loss == "squared" else 0.0
+        guess = np.full(len(y), self.start)
+        self.trees = []
+
+        for _ in range(self.n_trees):
+            # Step 1: slope and curve of the loss, for every dot
+            g, h = self.slope_and_curve(y, guess)
+
+            # Step 2 + 3: grow a tree with the scorecard, then prune weak splits
+            tree = XGBTree(**self.tree_settings).fit(X, g, h)
+
+            # Step 4: take a small step
+            guess = guess + self.learning_rate * tree.predict(X)
+            self.trees.append(tree)
+
+        return self
+
+    def raw_score(self, X):
+        score = np.full(len(X), self.start)
+        for tree in self.trees:
+            score = score + self.learning_rate * tree.predict(X)
+        return score
+
+    def predict(self, X):
+        score = self.raw_score(X)
+        if self.loss == "squared":
+            return score
+        return (score &gt; 0).astype(int)                  # chance above 50%  -&gt;  class 1
+
+
+# ---------------------------------------------------------------------- try it
+if __name__ == "__main__":
+    # Yes/no data: class 1 lives inside a circle. 5% of the labels are wrong (real data is messy).
+    rng = np.random.default_rng(3)
+    X = rng.uniform(0, 1, size=(600, 2))
+    y = ((X[:, 0] - 0.5) ** 2 + (X[:, 1] - 0.5) ** 2 &lt; 0.08).astype(float)
+    flip = rng.random(len(y)) &lt; 0.05
+    y[flip] = 1 - y[flip]
+    X_train, y_train = X[:400], y[:400]
+    X_new, y_new = X[400:], y[400:]
+
+    print("lambda | gamma | leaves in first tree | accuracy on new data")
+    for lam, gamma in [(0, 0), (1, 0), (1, 1), (5, 3)]:
+        model = XGBoostLite(n_trees=30, learning_rate=0.3, max_depth=4,
+                            lam=lam, gamma=gamma, loss="logistic").fit(X_train, y_train)
+        leaves = count_leaves(model.trees[0].root)
+        accuracy = np.mean(model.predict(X_new) == y_new)
+        print(f"{lam:6} | {gamma:5} | {leaves:20d} | {accuracy:20.0%}")
+
+    # Bigger lambda and gamma = smaller, calmer trees.
+    # Too little braking can overfit; too much can underfit. You tune them.
+</code></pre>
+<!-- /CODE -->
+      </div>
+
+      <div class="tab-panel">
+<pre class="code"><code class="language-python">import xgboost as xgb
+
+model = xgb.XGBClassifier(
+    n_estimators=1000,          # the most trees it may build
+    learning_rate=0.05,         # size of each step (also called eta)
+    max_depth=4,                # how deep each tree may grow
+    reg_lambda=1.0,             # λ: the brake on big leaf values
+    gamma=0.0,                  # γ: the fee a split must beat (also called min_split_loss)
+    subsample=0.8,              # each tree sees a random 80% of the rows
+    colsample_bytree=0.8,       # ...and a random 80% of the columns
+    tree_method="hist",         # fast: put numbers into buckets first
+    early_stopping_rounds=50,   # stop when the validation score stops improving
+)
+model.fit(X_train, y_train, eval_set=[(X_valid, y_valid)], verbose=False)
+print("trees actually used:", model.best_iteration + 1)
+
+# Missing values: just leave them as np.nan. XGBoost learns a default path for them.</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Remember + quiz -->
+  <section class="sec wrap">
+    <div class="remember">
+      <h3>Remember it</h3>
+      <ol>
+        <li>Slope g + curve h per dot. Leaf value = −G / (H + λ).</li>
+        <li>Split scorecard: gain = sim(left) + sim(right) − sim(parent). Must beat γ.</li>
+        <li>λ shrinks leaves, γ prunes weak branches, missing values learn a default path.</li>
+      </ol>
+    </div>
+    <div class="quiz-list">
+      <div class="quiz" data-answer="0">
+        <div class="q">With λ = 0, a leaf has G = −6 and H = 3. What is its value?</div>
+        <div class="opts"><button class="opt" type="button">2</button><button class="opt" type="button">−2</button><button class="opt" type="button">18</button></div>
+        <p class="why">w = −G / (H + λ) = −(−6) / 3 = 2.</p>
+      </div>
+      <div class="quiz" data-answer="1">
+        <div class="q">A split has gain 12, and γ = 20. What happens to it?</div>
+        <div class="opts"><button class="opt" type="button">It is kept</button><button class="opt" type="button">It is pruned</button><button class="opt" type="button">λ goes up automatically</button></div>
+        <p class="why">12 is less than the fee of 20, so the split did not earn its place.</p>
+      </div>
+      <div class="quiz" data-answer="1">
+        <div class="q">What does XGBoost do with a missing value?</div>
+        <div class="opts"><button class="opt" type="button">It stops with an error</button><button class="opt" type="button">It learns which side (left or right) missing values should go</button><button class="opt" type="button">It always replaces it with 0</button></div>
+        <p class="why">At each split it tries both sides for the missing dots and keeps the one with more gain.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav id="pager"></nav>
+<footer id="site-foot"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="../assets/js/viz.js"></script>
+<script src="../assets/js/ml.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/pages/xgboost.js"></script>
+</body>
+</html>

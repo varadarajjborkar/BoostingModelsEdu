@@ -146,7 +146,8 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
 - [x] Phase 3: AdaBoost (flashcard metaphor, stepper with weights as dot size, alpha explorer)
 - [x] Phase 4: Gradient Boosting (golf metaphor, leftover stepper `#gb=N`, learning-rate race,
   gradient bowl with squared vs absolute loss)
-- [ ] Phase 5: XGBoost
+- [x] Phase 5: XGBoost (careful-hiker metaphor, slope vs slope+curve walkers, split scorecard,
+  live pruning tree, missing-value default path, speed tiles; shared `drawTree` in xgboost.js)
 - [ ] Phase 6: LightGBM
 - [ ] Phase 7: CatBoost
 - [ ] Phase 8: Face-off / comparison

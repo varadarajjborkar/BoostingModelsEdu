@@ -268,6 +268,44 @@ const V = (() => {
     handle.addEventListener('pointercancel', up);
   }
 
+  // ---------- Small tree diagram ----------
+  // node = { lines: [bold first line, ...], tone: 'split' | 'a' | 'b', faded, children? }
+  // Leaves get equal slots left to right; a parent sits above the middle of its children.
+  function tree(svgEl, root, { W, H, boxW, boxH, font = 11.5 }) {
+    clear(svgEl);
+    let slot = 0, maxD = 0;
+    (function walk(n, d) {
+      n._d = d; maxD = Math.max(maxD, d);
+      if (!n.children) { n._x = slot++; return; }
+      n.children.forEach((c) => walk(c, d + 1));
+      n._x = (n.children[0]._x + n.children[n.children.length - 1]._x) / 2;
+    })(root, 0);
+    const px = (x) => (slot <= 1 ? W / 2 : boxW / 2 + 4 + (x * (W - boxW - 8)) / (slot - 1));
+    const py = (d) => 4 + (maxD ? (d * (H - boxH - 8)) / maxD : 0);
+    const edges = el('g', {}, svgEl), boxes = el('g', {}, svgEl);
+    const TONE = {
+      split: ['var(--paper)', 'var(--ink-2)'],
+      a: ['var(--c1-wash)', 'var(--c1)'],
+      b: ['var(--c2-wash)', 'var(--c2)'],
+    };
+    (function walk(n) {
+      const cx = px(n._x), y = py(n._d);
+      (n.children || []).forEach((c) => {
+        el('line', { x1: cx, y1: y + boxH, x2: px(c._x), y2: py(c._d), stroke: 'var(--rule-2)', 'stroke-width': 1.5, opacity: c.faded ? 0.3 : 1 }, edges);
+        walk(c);
+      });
+      const g = el('g', { opacity: n.faded ? 0.28 : 1 }, boxes);
+      const [fill, stroke] = TONE[n.tone || 'split'];
+      el('rect', { x: cx - boxW / 2, y, width: boxW, height: boxH, rx: Math.min(8, boxH / 3), fill, stroke, 'stroke-width': 1.2 }, g);
+      const lh = font + 3.5;
+      const top = y + boxH / 2 - ((n.lines.length - 1) * lh) / 2 + font * 0.35;
+      n.lines.forEach((t, i) => text(g, cx, top + i * lh, t, {
+        'text-anchor': 'middle', 'font-size': i === 0 ? font + 0.5 : font,
+        'font-weight': i === 0 ? 600 : 400, fill: i === 0 ? 'var(--ink)' : 'var(--ink-2)',
+      }));
+    })(root);
+  }
+
   const fmt = (v, d = 2) => (Math.abs(v) < 1e-9 ? '0' : Number(v).toFixed(d));
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -283,7 +321,7 @@ const V = (() => {
 
   return {
     el, text, svg, clear, $, scale, niceTicks, frame, axes, line, rng,
-    wave, waveFn, moons, ring, blobs, regions, tip, slider, seg, player, drag,
+    wave, waveFn, moons, ring, blobs, regions, tree, tip, slider, seg, player, drag,
     fmt, clamp, reducedMotion, onVisible,
   };
 })();

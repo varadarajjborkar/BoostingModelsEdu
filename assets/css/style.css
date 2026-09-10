@@ -242,6 +242,13 @@ svg.chart { display: block; width: 100%; height: auto; overflow: visible; font-f
 }
 @media (max-width: 760px) { .flow { grid-template-columns: 1fr 1fr; } .flow .step::after { display: none; } }
 
+/* small idea cards (no arrows) */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.tile { background: var(--card); border: 1px solid var(--rule); border-radius: 14px; padding: 16px; }
+.tile .ic { display: block; font-size: 22px; margin-bottom: 6px; }
+.tile b { display: block; font-size: 15.5px; margin-bottom: 4px; }
+.tile span:not(.ic) { font-size: 14px; color: var(--ink-2); }
+
 /* ---------- Under the hood (tabs) ---------- */
 .hood { background: var(--card); border: 1px solid var(--rule); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); }
 .tabs { display: flex; gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--rule); background: var(--paper-2); overflow-x: auto; }
