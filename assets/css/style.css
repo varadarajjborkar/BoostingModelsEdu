@@ -164,6 +164,10 @@ mark, .hl { background: linear-gradient(transparent 58%, rgba(201, 138, 0, .28) 
 .caption { font-size: 14px; color: var(--muted); margin-top: 10px; }
 .say-live { font-size: 15px; color: var(--ink-2); margin-top: 10px; min-height: 1.6em; }
 .say-live b { color: var(--ink); }
+.q-text { font: 600 21px/1.3 var(--serif); color: var(--ink); }
+.ghost { opacity: .08; transition: opacity .45s ease; }
+.shown { opacity: 1; transition: opacity .45s ease; }
+.badge { display: inline-block; font: 600 11.5px var(--sans); padding: 3px 9px; border-radius: 999px; background: var(--c3-wash); color: var(--good); }
 
 /* buttons */
 .btn {

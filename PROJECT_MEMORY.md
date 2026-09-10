@@ -1,7 +1,8 @@
-# Boosting, Visually: project memory (READ FIRST after any compaction)
+# Boosting, Visually: project memory (READ FIRST after any context reset)
 
 This file is the persistent memory layer for this project. Keep it updated at the end
-of every phase so work can resume exactly where it stopped.
+of every phase so work can resume exactly where it stopped. A local, untracked loader
+file (listed in `.git/info/exclude`) points the coding assistant here automatically.
 
 ## Goal
 
@@ -15,21 +16,62 @@ Inspiration (layout/feel only, do NOT copy): arjunvirk.com/writing/ml-guide.
 ## Hard rules from the user
 
 - Simple, easy words. Explain like to a smart beginner who is a bit slow at first.
-- **Never mention exams (JEE etc.), school grades, or age anywhere in site content.**
+- **Never mention exams, school grades, or age anywhere in site content.**
 - **Never use em dashes** (the long dash) anywhere: site text, code comments, commit
   messages, this file, chat replies. Use commas, colons, periods or a plain hyphen.
-  Before every commit run: `grep -rn $'\xe2\x80\x94' --exclude-dir=.git .` and fix any hit.
+- **Never mention the AI assistant or its maker, never add attribution trailers to
+  commits or PRs, never write the user's personal email anywhere.** Commits use the
+  GitHub noreply address already set in the local git config (`git config user.email`).
 - Less text. Short lines. Visuals do the heavy lifting.
 - Colour theme: **beige / milky-white** (not the dark look of the inspiration site).
 - Core topics: **XGBoost, LightGBM, CatBoost** (most important) + max 2 more:
   **AdaBoost** and **Gradient Boosting (GBM)**. A short warm-up on trees + the boosting idea
   and a final comparison page are support pages, not extra "models".
 - Commit phase-wise, regularly, with clear messages, then push.
+- **Teaching code must be hand-crafted for beginners** (applies to the Python classes and
+  pseudo-code shown as lesson content, not to the site's own JS). See style guide below.
+
+### Style guide for lesson code (`code/*.py` and `pre.pseudo`)
+
+- Use the **same words as the page**: "mess score", "yes group / no group", "leftover error",
+  "vote power", "brake", "bucket". A reader should recognise the story in the code.
+- Plain `for` loops over clever numpy tricks (no cumsum/mask gymnastics). Speed does not matter.
+- Everyday variable names: `leftover`, `learning_rate`, `says_yes`, `heavier`, not `r`, `lr`, `m`.
+- Short functions, one idea each, with a one-line docstring in plain words.
+- `# Step 1 / Step 2 / Step 3` comments that mirror the pseudo-code steps.
+- A module docstring that restates the big idea in 5 to 8 short lines.
+- A small `__main__` demo that prints a readable table and ends with a comment saying
+  what to notice.
+- Pseudo-code: plain English, 3 or 4 named steps, same vocabulary, about 10 to 16 lines,
+  keywords in `<b>`, notes in `<i>`, key ideas in `<u>`.
+- Library tab: short, every argument commented with what it *means* in the story.
+
+Pre-commit check (all must print nothing):
+
+```sh
+grep -rn $'\xe2\x80\x94' --exclude-dir=.git .
+grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git .
+```
 
 ## Git
 
 - Branch `main`, remote `origin` = <https://github.com/varadarajjborkar/BoostingModelsEdu.git>
 - After each phase commit: `git push -u origin main` (user asked for this).
+- Commit email = GitHub noreply address in the repo's local git config (user approved).
+- 2026-09-10: Phase 0 and 1 commits were rewritten (attribution line, personal email and
+  old memory filename removed) and force-pushed with the user's approval. Never force-push
+  again without asking.
+
+## Hosting (Vercel)
+
+- User hosts on **Vercel** as a plain static site (no framework, no build command,
+  output dir = repo root). `vercel.json`: `cleanUrls` (so `/pages/03-xgboost` works and
+  `.html` links redirect), cache headers for `/assets`, `.py` served as text.
+- `.vercelignore` keeps `PROJECT_MEMORY.md`, `README.md`, `tools/` off the live site.
+  `code/*.py` stays public on purpose (learners can open/download the classes).
+- Keep links **relative** (`../assets/...`, `pages/x.html`) so the site works both on
+  Vercel and when opened straight from disk. Only `404.html` uses root-absolute paths
+  (Vercel serves it at any depth).
 
 ## Tech decisions
 
@@ -59,7 +101,7 @@ Inspiration (layout/feel only, do NOT copy): arjunvirk.com/writing/ml-guide.
   `.metaphor .story-map`, `.viz .viz-top .controls .ctrl .btn .seg .stats .stat .legend .caption .say-live`,
   `.flow .step`, `.note`, `.hood[data-tabs] .tabs .tab .tab-panel .eq .say .symbols`,
   `pre.code > code.language-python`, `pre.pseudo (b/i/u)`, `.remember`, `.quiz[data-answer] .opt .why`,
-  `.term[data-tip]`, `table.t` in `.table-wrap`.
+  `.term[data-tip]`, `table.t` in `.table-wrap`, `.q-text`, `.ghost/.shown`, `.badge`.
 
 ## Page structure (every lesson page follows this rhythm)
 
@@ -83,7 +125,8 @@ Inspiration (layout/feel only, do NOT copy): arjunvirk.com/writing/ml-guide.
 ## File map
 
 - `index.html`: home + learning path (`assets/js/pages/home.js`)
-- `pages/00-warmup.html`: trees, weak learners, measuring mistakes, bagging vs boosting
+- `pages/00-warmup.html` (`warmup.js`): best question (Gini), depth vs overfitting,
+  mistakes as squares (bowl), bagging vs boosting stepper
 - `pages/01-adaboost.html`
 - `pages/02-gradient-boosting.html`
 - `pages/03-xgboost.html`
@@ -92,14 +135,14 @@ Inspiration (layout/feel only, do NOT copy): arjunvirk.com/writing/ml-guide.
 - `pages/06-faceoff.html`: comparison, cheat-sheet, "which one to pick", tuning viz
 - `assets/css/style.css`, `assets/js/common.js`, `assets/js/viz.js`, `assets/js/ml.js`,
   `assets/js/pages/*.js` (one per page)
-- `code/*.py`: runnable from-scratch implementations
+- `code/*.py`: runnable from-scratch implementations (`decision_tree.py` done)
 - `tools/embed_code.py`
 
 ## Phase status (update after each commit)
 
 - [x] Phase 0: repo, memory, plan
 - [x] Phase 1: design system, shared JS, home page
-- [ ] Phase 2: Warm-up page
+- [x] Phase 2: Warm-up page + Vercel config (vercel.json, .vercelignore, 404.html)
 - [ ] Phase 3: AdaBoost
 - [ ] Phase 4: Gradient Boosting
 - [ ] Phase 5: XGBoost
@@ -114,10 +157,18 @@ Inspiration (layout/feel only, do NOT copy): arjunvirk.com/writing/ml-guide.
 - Headless screenshot:
   `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --user-data-dir=<scratch>/chrome --virtual-time-budget=6000 --screenshot=out.png --window-size=1300,2400 file://$PWD/pages/xx.html`
   (always use a scratch `--user-data-dir` so the user's real Chrome profile is untouched;
-  CSS transitions do not advance under virtual time, so avoid transitions on live readouts)
+  CSS transitions do not advance under virtual time, so avoid transitions on live readouts).
+  Crop tall shots with `sips -c <h> <w> --cropOffset <y> 0 in.png --out part.png`.
 - Python: run each `code/*.py` with a numpy venv (scratch venv, not committed).
 
 ## Notes / decisions log
 
 - XGBoost gain is taught as `sim(L) + sim(R) - sim(parent)`, prune if gain < gamma
   (matches the library code; the paper's version has a 1/2 factor, mentioned in the Math tab).
+- `V.regions` paints a small canvas (120x90) stretched into an SVG `<image>`: smooth shading,
+  no grid seams. Pass colour tokens by name (`pos:'--c1'`).
+- Datasets are tuned so the lesson is visible: warm-up depth demo uses `moons(120, 0.28, 8)`
+  (best new-data accuracy at depth 2, depth 10 = 100% train vs 86% new). Before choosing
+  data for a demo, test candidate settings in node (load viz.js + ml.js with `vm`).
+- Headless Chrome with a fresh `--user-data-dir` can hang after writing the PNG: run it in the
+  background, wait for the file, then kill it (add `--no-first-run --disable-extensions`).

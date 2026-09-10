@@ -159,23 +159,39 @@ const V = (() => {
     return { X, y };
   }
 
+  // Read a hex colour token from CSS (e.g. '--c1') as [r, g, b].
+  const rgbCache = {};
+  function cssRgb(name) {
+    if (rgbCache[name]) return rgbCache[name];
+    const h = getComputedStyle(document.documentElement).getPropertyValue(name).trim().replace('#', '');
+    const rgb = h.length === 3 ? [...h].map((c) => parseInt(c + c, 16)) : [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+    rgbCache[name] = rgb;
+    return rgb;
+  }
+
   // ---------- Decision regions: shade the plane by a score in [-1, 1] ----------
-  function regions(parent, f, scoreFn, { cols = 48, rows = 36, strength = 0.26 } = {}) {
-    const g = el('g', {}, parent);
-    const cw = f.iw / cols, ch = f.ih / rows;
-    for (let i = 0; i < cols; i++) {
-      for (let j = 0; j < rows; j++) {
-        const px = f.left + (i + 0.5) * cw, py = f.top + (j + 0.5) * ch;
-        const s = scoreFn(f.sx.inv(px), f.sy.inv(py));
-        const a = 0.04 + strength * Math.min(1, Math.abs(s));
-        el('rect', {
-          x: (f.left + i * cw).toFixed(2), y: (f.top + j * ch).toFixed(2),
-          width: (cw + 0.6).toFixed(2), height: (ch + 0.6).toFixed(2),
-          fill: s >= 0 ? 'var(--pos)' : 'var(--neg)', 'fill-opacity': a.toFixed(3),
-        }, g);
+  // Painted on a small canvas and stretched, so the shading is smooth (no grid seams).
+  function regions(parent, f, scoreFn, { cols = 120, rows = 90, strength = 0.26, pos = '--c1', neg = '--c2' } = {}) {
+    const cv = document.createElement('canvas');
+    cv.width = cols; cv.height = rows;
+    const ctx = cv.getContext('2d');
+    const img = ctx.createImageData(cols, rows);
+    const P = cssRgb(pos), N = cssRgb(neg);
+    for (let j = 0; j < rows; j++) {
+      const y = f.y[1] - ((j + 0.5) / rows) * (f.y[1] - f.y[0]);
+      for (let i = 0; i < cols; i++) {
+        const x = f.x[0] + ((i + 0.5) / cols) * (f.x[1] - f.x[0]);
+        const s = scoreFn(x, y);
+        const c = s >= 0 ? P : N;
+        const k = 4 * (j * cols + i);
+        img.data[k] = c[0]; img.data[k + 1] = c[1]; img.data[k + 2] = c[2];
+        img.data[k + 3] = Math.round((0.04 + strength * Math.min(1, Math.abs(s))) * 255);
       }
     }
-    return g;
+    ctx.putImageData(img, 0, 0);
+    return el('image', {
+      href: cv.toDataURL(), x: f.left, y: f.top, width: f.iw, height: f.ih, preserveAspectRatio: 'none',
+    }, parent);
   }
 
   // ---------- Tooltip ----------

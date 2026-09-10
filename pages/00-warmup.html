@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warm-up: Trees &amp; the Team Idea · Boosting, Visually</title>
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-page="00-warmup" data-root="../">
+<header id="site-nav"></header>
+
+<main>
+  <section class="wrap hero">
+    <div class="kicker"><span class="dot"></span>Chapter 00 · Warm-up</div>
+    <h1>Trees, and the <em>team</em> idea</h1>
+    <p class="big-idea">A tree is a game of yes/no questions. One small tree is weak. A team of small trees, built the right way, is very strong.</p>
+    <div class="meta-row"><span class="pill">≈ 12 min</span><span class="pill">4 things to play with</span><span class="pill">No math needed yet</span></div>
+  </section>
+
+  <!-- Metaphor -->
+  <section class="wrap" style="padding-bottom:40px">
+    <div class="metaphor">
+      <div class="art">
+        <svg viewBox="0 0 240 190" role="img" aria-label="A 20 questions tree guessing fruit">
+          <g stroke="var(--rule-2)" stroke-width="2" fill="none">
+            <path d="M120,38 L62,84"/><path d="M120,38 L190,94"/>
+            <path d="M62,112 L30,150"/><path d="M62,112 L102,150"/>
+          </g>
+          <rect x="60" y="10" width="120" height="30" rx="9" fill="var(--paper)" stroke="var(--ink-2)"/>
+          <text x="120" y="30" text-anchor="middle" font-size="12.5" fill="var(--ink)" font-family="Inter, sans-serif">Is it round?</text>
+          <rect x="2" y="84" width="120" height="30" rx="9" fill="var(--paper)" stroke="var(--ink-2)"/>
+          <text x="62" y="104" text-anchor="middle" font-size="12" fill="var(--ink)" font-family="Inter, sans-serif">Bigger than a fist?</text>
+          <text x="82" y="58" font-size="10.5" fill="var(--c3)" font-family="Inter, sans-serif">yes</text>
+          <text x="162" y="62" font-size="10.5" fill="var(--c2)" font-family="Inter, sans-serif">no</text>
+          <text x="30" y="136" font-size="10.5" fill="var(--c3)" font-family="Inter, sans-serif">yes</text>
+          <text x="88" y="136" font-size="10.5" fill="var(--c2)" font-family="Inter, sans-serif">no</text>
+          <circle cx="190" cy="112" r="20" fill="var(--c4-wash)"/><text x="190" y="120" text-anchor="middle" font-size="22">🍌</text>
+          <circle cx="30" cy="166" r="20" fill="var(--c3-wash)"/><text x="30" y="174" text-anchor="middle" font-size="22">🍉</text>
+          <circle cx="102" cy="166" r="20" fill="var(--c2-wash)"/><text x="102" y="174" text-anchor="middle" font-size="22">🍊</text>
+        </svg>
+      </div>
+      <div>
+        <div class="label">Picture this</div>
+        <h3>The "20 Questions" game</h3>
+        <p>You guess a fruit by asking yes/no questions. Each answer throws away half the options. A decision tree plays this exact game with data.</p>
+        <div class="story-map">
+          <span class="s">A question</span><span class="arrow">→</span><span class="m">a split: "feature ≤ value?"</span>
+          <span class="s">Your path of answers</span><span class="arrow">→</span><span class="m">a branch</span>
+          <span class="s">The final guess</span><span class="arrow">→</span><span class="m">a leaf</span>
+          <span class="s">How many questions</span><span class="arrow">→</span><span class="m">the depth</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1. Best question -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>Find the best question</h2>
+      <p class="lede">A good question splits the dots into groups that are <mark>not mixed</mark>. Drag the line and watch the mess score.</p>
+    </div>
+    <div class="viz" id="split-viz">
+      <div class="viz-top">
+        <span class="viz-title">Drag the black line (or click anywhere on the plot)</span>
+        <span class="viz-hint">lower mess score = better question</span>
+      </div>
+      <div class="controls">
+        <div class="seg" id="sp-feat"><button data-v="0" class="on">Ask about feature 1</button><button data-v="1">Ask about feature 2</button></div>
+        <div class="btn-row"><button class="btn" id="sp-scan" type="button">▶ Scan every cut</button><button class="btn primary" id="sp-best" type="button">Jump to best</button></div>
+      </div>
+      <div class="grid-2-1">
+        <div class="plot"></div>
+        <div>
+          <div class="panel-title">The question</div>
+          <div class="q-text" id="sp-q">Is feature 1 ≤ 0.50?</div>
+          <div class="panel-title" style="margin-top:16px">How mixed is each group?</div>
+          <div id="sp-bars"></div>
+          <div class="stats">
+            <div class="stat"><div class="k">Mess score (Gini)</div><div class="v" id="sp-gini">0</div></div>
+            <div class="stat good"><div class="k">Best possible</div><div class="v" id="sp-bestv">0</div></div>
+          </div>
+          <div class="panel-title" style="margin-top:16px">Mess score for every cut</div>
+          <div id="sp-curve"></div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--pos)"></i>class A</span>
+        <span><i class="sw" style="background:var(--neg)"></i>class B</span>
+      </div>
+    </div>
+    <div class="note"><span class="ic">🧠</span><span><b>That is all a tree does:</b> try every possible cut, keep the one with the lowest mess score, then repeat inside each group.</span></div>
+  </section>
+
+  <!-- 2. Depth -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>Tiny tree or giant tree?</h2>
+      <p class="lede">More questions = more detail. But too many questions and the tree starts to <mark>memorize</mark> instead of learn.</p>
+    </div>
+    <div class="viz" id="depth-viz">
+      <div class="viz-top">
+        <span class="viz-title">Slide the depth (number of questions in a row)</span>
+        <span class="viz-hint">shading = what the tree would answer there</span>
+      </div>
+      <div class="controls">
+        <label class="ctrl">Depth <input type="range" id="dp-depth" min="1" max="10" step="1" value="1"><output for="dp-depth"></output></label>
+      </div>
+      <div class="grid-2-1">
+        <div class="plot"></div>
+        <div>
+          <div class="stats" style="margin-top:0">
+            <div class="stat"><div class="k">Leaves</div><div class="v" id="dp-leaves">2</div></div>
+            <div class="stat"><div class="k">Training data</div><div class="v" id="dp-tr">0%</div></div>
+            <div class="stat"><div class="k">New data</div><div class="v" id="dp-te">0%</div></div>
+          </div>
+          <div class="panel-title" style="margin-top:16px">Accuracy at every depth</div>
+          <div id="dp-chart"></div>
+          <div class="legend">
+            <span><i class="ln" style="background:var(--ink-2)"></i>training data</span>
+            <span><i class="ln" style="background:var(--c3)"></i>new, unseen data</span>
+          </div>
+          <p class="say-live" id="dp-say"></p>
+        </div>
+      </div>
+    </div>
+    <div class="note blue"><span class="ic">🌱</span><span>A depth-1 tree has one question. It is called a <span class="term" tabindex="0" data-tip="A tree with just one question and two leaves. Very weak alone.">stump</span>. Boosting loves stumps and small trees: <b>weak alone, strong as a team.</b></span></div>
+  </section>
+
+  <!-- 3. Loss -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>How do we measure a mistake?</h2>
+      <p class="lede">For numbers, a mistake is the gap between the guess and the truth. We square it, so a mistake is literally a <mark>square</mark>. Smaller total area = better guess.</p>
+    </div>
+    <div class="viz" id="loss-viz">
+      <div class="viz-top">
+        <span class="viz-title">Drag the guess line up and down</span>
+        <span class="viz-hint">each square = one mistake, squared</span>
+      </div>
+      <div class="controls"><button class="btn primary" id="ls-best" type="button">Slide to the lowest total</button></div>
+      <div class="grid-2-1">
+        <div class="plot"></div>
+        <div>
+          <div class="stats" style="margin-top:0">
+            <div class="stat"><div class="k">Your guess</div><div class="v" id="ls-c">0</div></div>
+            <div class="stat"><div class="k">Total square area</div><div class="v" id="ls-total">0</div></div>
+            <div class="stat"><div class="k">Average of dots</div><div class="v">4.50</div></div>
+          </div>
+          <div class="panel-title" style="margin-top:16px">Total area for every guess</div>
+          <div id="ls-bowl"></div>
+          <p class="say-live" id="ls-say"></p>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i class="sq" style="background:var(--c1-wash);outline:1px solid var(--c1)"></i>guess too low</span>
+        <span><i class="sq" style="background:var(--c2-wash);outline:1px solid var(--c2)"></i>guess too high</span>
+      </div>
+    </div>
+    <div class="note"><span class="ic">🎯</span><span><b>The best flat guess is the average.</b> That is why a tree's leaf predicts the average of the dots inside it. And the bowl shape? Gradient boosting slides down bowls like this one. Hold on to that picture.</span></div>
+  </section>
+
+  <!-- 4. Bagging vs boosting -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>Two ways to build a team</h2>
+      <p class="lede">Both use many trees. The difference is <mark>how</mark> the trees are built.</p>
+    </div>
+    <div class="viz" id="team-viz">
+      <div class="viz-top">
+        <span class="viz-title">Press Step and compare the two teams</span>
+        <span class="viz-hint">dot size = how much a tree cares about that dot</span>
+      </div>
+      <div class="controls">
+        <div class="btn-row"><button class="btn primary" data-act="step" type="button">Step →</button><button class="btn" data-act="play" type="button">▶ Play</button><button class="btn" data-act="reset" type="button">Reset</button></div>
+        <span class="muted" style="font-size:14px">Step <b id="tm-n">0</b> of 4</span>
+      </div>
+      <div class="grid-2">
+        <div><div class="panel-title">Bagging <span class="badge" id="tm-bag-done" style="visibility:hidden">done ✓</span></div><div class="bag"></div></div>
+        <div><div class="panel-title">Boosting <span class="badge" id="tm-boost-done" style="visibility:hidden">done ✓</span></div><div class="boost"></div></div>
+      </div>
+      <p class="say-live" id="tm-say">Press Step. Watch how each team is built.</p>
+    </div>
+
+    <div class="table-wrap" style="margin-top:20px">
+      <table class="t">
+        <thead><tr><th></th><th>Bagging</th><th>Boosting</th></tr></thead>
+        <tbody>
+          <tr><td><b>Trees are built</b></td><td>all at the same time</td><td>one after another</td></tr>
+          <tr><td><b>Each tree looks at</b></td><td>a random bag of the data</td><td>the mistakes so far</td></tr>
+          <tr><td><b>Usual tree size</b></td><td>big, deep trees</td><td>small, shallow trees</td></tr>
+          <tr><td><b>Mainly fixes</b></td><td><span class="term" tabindex="0" data-tip="Wobble: the model changes a lot if the data changes a little.">variance</span> (wobble)</td><td><span class="term" tabindex="0" data-tip="Weakness: the model is too simple to catch the real pattern.">bias</span> (weakness)</td></tr>
+          <tr><td><b>Famous example</b></td><td>Random Forest</td><td>everything else on this site</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Under the hood -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">Hood</span>
+      <h2>Under the hood</h2>
+      <p class="lede">Optional. Open a tab when you are curious.</p>
+    </div>
+    <div class="hood" data-tabs>
+      <div class="tabs"><button class="tab" type="button">Math</button><button class="tab" type="button">Pseudo-code</button><button class="tab" type="button">Python (from scratch)</button><button class="tab" type="button">Using a library</button></div>
+
+      <div class="tab-panel">
+        <h4>1 · Mess score of a group (Gini)</h4>
+        <div class="eq">$$G = 1 - \sum_{k} p_k^2 \qquad \text{(2 classes: } G = 2p(1-p)\text{)}$$</div>
+        <p class="say"><b>Say it:</b> pick two dots from the group at random. G is the chance they have different colours. Pure group → 0. Half-half → 0.5.</p>
+        <h4>2 · How good is a question?</h4>
+        <div class="eq">$$\text{Gain} = G_{\text{parent}} - \Big(\tfrac{n_L}{n}\,G_L + \tfrac{n_R}{n}\,G_R\Big)$$</div>
+        <p class="say"><b>Say it:</b> mess before, minus mess after. The tree keeps the question with the biggest gain.</p>
+        <h4>3 · Mistakes for numbers (squared error)</h4>
+        <div class="eq">$$L(c) = \sum_{i=1}^{n} (y_i - c)^2 \qquad \frac{dL}{dc} = -2\sum_{i}(y_i - c) = 0 \;\Rightarrow\; c = \bar{y}$$</div>
+        <p class="say"><b>Say it:</b> the total square area is a bowl. Its bottom (slope = 0) is exactly at the average.</p>
+        <dl class="symbols">
+          <dt>$p$</dt><dd>share of class A dots in the group</dd>
+          <dt>$n_L,\ n_R$</dt><dd>how many dots go left (yes) and right (no)</dd>
+          <dt>$y_i$</dt><dd>true value of dot $i$</dd>
+          <dt>$c$</dt><dd>our flat guess</dd>
+        </dl>
+      </div>
+
+      <div class="tab-panel">
+<pre class="pseudo"><b>to grow a tree</b> from a group of dots:
+
+  <i>Step 1. Should we stop?</i>
+     <b>if</b> we already asked max_depth questions, <b>or</b> the group is one colour:
+         make a <u>leaf</u>. Its answer = the most common colour here.
+
+  <i>Step 2. Find the best question</i>
+     <b>for each</b> feature, <b>for each</b> possible cut:
+         split the dots into a yes group and a no group
+         work out the mess score of that split
+     keep the question with the <u>lowest mess score</u>
+
+  <i>Step 3. Split and repeat</i>
+     grow a tree for the yes group    <i>(same 3 steps again)</i>
+     grow a tree for the no group</pre>
+      </div>
+
+      <div class="tab-panel">
+        <p class="muted" style="font-size:14.5px">Runnable with just numpy. File: <code>code/decision_tree.py</code></p>
+        <!-- CODE:decision_tree.py -->
+<pre class="code"><code class="language-python">"""
+A decision tree, built from scratch.
+
+The idea (same as on the page):
+    A tree plays "20 questions" with the data.
+    At every step it tries many yes/no questions, like
+        "is feature 1 &lt;= 0.42 ?"
+    and keeps the one that leaves the two groups the LEAST mixed.
+
+We measure "how mixed" with the mess score (Gini):
+    0.0  = the group is all one class   (pure, great)
+    0.5  = the group is half and half   (total mess)
+
+Needs only numpy.   Run it with:   python decision_tree.py
+"""
+import numpy as np
+
+
+def mess_score(labels):
+    """Gini mess score of a group of 0/1 labels."""
+    if len(labels) == 0:
+        return 0.0
+    p = np.mean(labels)                 # share of class 1 in the group
+    return 2 * p * (1 - p)
+
+
+def mess_after_split(yes_labels, no_labels):
+    """Mess of the two groups together. Bigger groups count more."""
+    n = len(yes_labels) + len(no_labels)
+    return (len(yes_labels) / n) * mess_score(yes_labels) + \
+           (len(no_labels) / n) * mess_score(no_labels)
+
+
+class Node:
+    """One box in the tree: either a question (with 2 children) or a leaf (an answer)."""
+
+    def __init__(self, answer):
+        self.answer = answer            # share of class 1 here (used when this is a leaf)
+        self.feature = None             # the question is:  x[feature] &lt;= threshold ?
+        self.threshold = None
+        self.yes = None                 # where to go if the answer is yes
+        self.no = None                  # where to go if the answer is no
+
+    def is_leaf(self):
+        return self.yes is None
+
+
+class DecisionTree:
+    def __init__(self, max_depth=3):
+        self.max_depth = max_depth      # at most this many questions in a row
+
+    # ------------------------------------------------------------------ learning
+    def fit(self, X, y):
+        X = np.asarray(X, dtype=float)
+        y = np.asarray(y, dtype=int)
+        self.root = self.grow(X, y, depth=0)
+        return self
+
+    def find_best_question(self, X, y):
+        """Try every feature and every cut. Keep the question with the lowest mess."""
+        best = {"mess": mess_score(y), "feature": None, "threshold": None}   # "ask nothing" is the bar to beat
+
+        for feature in range(X.shape[1]):
+            values = np.unique(X[:, feature])            # sorted, no repeats
+            cuts = (values[:-1] + values[1:]) / 2         # halfway between neighbours
+
+            for threshold in cuts:
+                says_yes = X[:, feature] &lt;= threshold
+                mess = mess_after_split(y[says_yes], y[~says_yes])
+                if mess &lt; best["mess"]:
+                    best = {"mess": mess, "feature": feature, "threshold": threshold}
+
+        return best
+
+    def grow(self, X, y, depth):
+        node = Node(answer=np.mean(y))
+
+        # Step 1: stop if we asked enough questions, or the group is already pure
+        if depth == self.max_depth or mess_score(y) == 0:
+            return node
+
+        # Step 2: find the best question for this group
+        best = self.find_best_question(X, y)
+        if best["feature"] is None:                      # no question makes it less mixed
+            return node
+
+        # Step 3: split into a "yes" group and a "no" group, then grow each one
+        node.feature = best["feature"]
+        node.threshold = best["threshold"]
+        says_yes = X[:, node.feature] &lt;= node.threshold
+        node.yes = self.grow(X[says_yes], y[says_yes], depth + 1)
+        node.no = self.grow(X[~says_yes], y[~says_yes], depth + 1)
+        return node
+
+    # ----------------------------------------------------------------- answering
+    def predict_one(self, x):
+        """Walk down the tree, answering each question, until we reach a leaf."""
+        node = self.root
+        while not node.is_leaf():
+            node = node.yes if x[node.feature] &lt;= node.threshold else node.no
+        return node.answer
+
+    def predict(self, X):
+        shares = np.array([self.predict_one(x) for x in np.asarray(X, dtype=float)])
+        return (shares &gt;= 0.5).astype(int)              # the most common class in that leaf
+
+
+# ---------------------------------------------------------------------- try it
+if __name__ == "__main__":
+    # A toy dataset: class 1 lives inside a circle, class 0 lives outside.
+    rng = np.random.default_rng(0)
+    X = rng.uniform(0, 1, size=(600, 2))
+    y = ((X[:, 0] - 0.5) ** 2 + (X[:, 1] - 0.5) ** 2 &lt; 0.1).astype(int)
+
+    # Real data is messy, so flip 10% of the labels.
+    flip = rng.random(len(y)) &lt; 0.1
+    y[flip] = 1 - y[flip]
+
+    X_train, y_train = X[:400], y[:400]      # the tree learns from these
+    X_new, y_new = X[400:], y[400:]          # kept hidden, to test the tree fairly
+
+    print("depth | training data | new data")
+    for depth in [1, 3, 5, 8, 14]:
+        tree = DecisionTree(max_depth=depth).fit(X_train, y_train)
+        train_acc = np.mean(tree.predict(X_train) == y_train)
+        new_acc = np.mean(tree.predict(X_new) == y_new)
+        print(f"{depth:5d} | {train_acc:13.0%} | {new_acc:8.0%}")
+
+    # Training accuracy climbs toward 100%, but new-data accuracy stops improving.
+    # That gap is overfitting: the deep tree is memorizing, not learning.
+</code></pre>
+<!-- /CODE -->
+      </div>
+
+      <div class="tab-panel">
+<pre class="code"><code class="language-python">from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+
+tree   = DecisionTreeClassifier(max_depth=3)          # one tree
+forest = RandomForestClassifier(n_estimators=300)     # bagging: many trees, they vote
+boost  = GradientBoostingClassifier(n_estimators=300, # boosting: trees in a line
+                                    learning_rate=0.05,
+                                    max_depth=3)
+
+for model in (tree, forest, boost):
+    model.fit(X_train, y_train)
+    print(type(model).__name__, model.score(X_test, y_test))</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Remember + quiz -->
+  <section class="sec wrap">
+    <div class="remember">
+      <h3>Remember it</h3>
+      <ol>
+        <li>A tree = yes/no questions. Best question = least mixed groups.</li>
+        <li>Deep trees memorize. Tiny trees are weak but honest.</li>
+        <li>Bagging: trees side by side, then vote. Boosting: trees in a line, each fixing the last one's mistakes.</li>
+      </ol>
+    </div>
+    <div class="quiz-list">
+      <div class="quiz" data-answer="1">
+        <div class="q">A group has 5 blue and 5 orange dots. Its Gini mess score is…</div>
+        <div class="opts"><button class="opt" type="button">0</button><button class="opt" type="button">0.5</button><button class="opt" type="button">1</button></div>
+        <p class="why">Half-half is the messiest a 2-colour group can get: 2 × 0.5 × 0.5 = 0.5.</p>
+      </div>
+      <div class="quiz" data-answer="1">
+        <div class="q">A tree scores 100% on training data but only 70% on new data. What happened?</div>
+        <div class="opts"><button class="opt" type="button">It is too small</button><button class="opt" type="button">It memorized the training data (overfitting)</button><button class="opt" type="button">New data is always harder, nothing is wrong</button></div>
+        <p class="why">A perfect training score with a big drop on new data is the classic sign of memorizing.</p>
+      </div>
+      <div class="quiz" data-answer="2">
+        <div class="q">In boosting, what does tree #2 pay most attention to?</div>
+        <div class="opts"><button class="opt" type="button">A random bag of the data</button><button class="opt" type="button">The easiest dots</button><button class="opt" type="button">The dots tree #1 got wrong</button></div>
+        <p class="why">That is the heart of boosting: every new tree studies the mistakes of the team so far.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav id="pager"></nav>
+<footer id="site-foot"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="../assets/js/viz.js"></script>
+<script src="../assets/js/ml.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/pages/warmup.js"></script>
+</body>
+</html>
