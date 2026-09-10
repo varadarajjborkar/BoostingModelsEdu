@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boosting, Visually</title>
+<meta name="description" content="Learn boosting (AdaBoost, Gradient Boosting, XGBoost, LightGBM, CatBoost) with simple words and interactive pictures.">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="home" data-root="">
+<header id="site-nav"></header>
+
+<main>
+  <section class="wrap home-hero">
+    <div>
+      <div class="kicker"><span class="dot"></span>A visual course on boosting</div>
+      <h1>Boosting,<br><em>drawn out.</em></h1>
+      <p class="big-idea">Many weak guesses, added one by one, become one strong answer. Learn how, with pictures and sliders instead of walls of text.</p>
+      <div class="cta">
+        <a class="btn primary" href="pages/00-warmup.html">Start the warm-up →</a>
+        <a class="btn" href="pages/03-xgboost.html">Jump to XGBoost</a>
+      </div>
+      <div class="meta-row">
+        <span class="pill">7 short chapters</span>
+        <span class="pill">Play with every chart</span>
+        <span class="pill">Math, pseudo-code &amp; Python inside</span>
+      </div>
+    </div>
+
+    <div class="hero-card" id="hero-viz">
+      <div class="row"><span>Watch tiny trees team up</span><button class="btn" id="hero-toggle" type="button">❚❚ Pause</button></div>
+      <div class="plot"></div>
+      <div class="row">
+        <div class="tree-count"><span id="hero-count">0</span> <span class="muted" style="font:500 14px var(--sans)">trees in the team</span></div>
+        <div>error left: <b id="hero-mse">100%</b></div>
+      </div>
+      <div class="meter"><i id="hero-meter"></i></div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--ink-2);opacity:.5"></i>data points</span>
+        <span><i class="ln" style="background:var(--c1)"></i>the team's guess</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">The loop</span>
+      <h2>All of boosting, in four steps</h2>
+      <p class="lede">Every model on this site repeats this loop. Only the details change.</p>
+    </div>
+    <div class="flow" style="--n:4">
+      <div class="step"><b>Guess</b><span>Start with one simple guess for everyone.</span></div>
+      <div class="step"><b>Look at mistakes</b><span>Where is the guess wrong, and by how much?</span></div>
+      <div class="step"><b>Train a tiny fixer</b><span>A small tree that only tries to fix those mistakes.</span></div>
+      <div class="step"><b>Add it to the team</b><span>Add a little of that fix. Then repeat.</span></div>
+    </div>
+    <div class="note"><span class="ic">💡</span><span><b>Boosting = learning from mistakes, one small step at a time.</b> Keep this one sentence in your head. Every chapter is a version of it.</span></div>
+  </section>
+
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">The path</span>
+      <h2>Seven short chapters</h2>
+      <p class="lede">Go in order the first time. Each one builds on the one before.</p>
+    </div>
+    <div class="chapter-grid" id="chapters"></div>
+  </section>
+
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">Family tree</span>
+      <h2>How the ideas grew</h2>
+      <p class="lede">Each new model kept the old idea and fixed one weakness.</p>
+    </div>
+    <div class="timeline">
+      <div class="ev"><div class="yr">1995</div><div class="nm">AdaBoost</div><div class="ds">Make the missed points heavier.</div></div>
+      <div class="ev"><div class="yr">2001</div><div class="nm">Gradient Boosting</div><div class="ds">Fit the leftover error. Works for any loss.</div></div>
+      <div class="ev"><div class="yr">2016</div><div class="nm">XGBoost</div><div class="ds">Adds curvature, penalties and raw speed.</div></div>
+      <div class="ev"><div class="yr">2017</div><div class="nm">LightGBM</div><div class="ds">Buckets + leaf-wise growth. Very fast.</div></div>
+      <div class="ev"><div class="yr">2018</div><div class="nm">CatBoost</div><div class="ds">Categories without leaking the answer.</div></div>
+    </div>
+  </section>
+
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">How to use</span>
+      <h2>Every chapter has the same rhythm</h2>
+      <p class="lede">So you always know where you are.</p>
+    </div>
+    <div class="flow" style="--n:4">
+      <div class="step"><b>A story</b><span>A small picture-story that makes the idea stick.</span></div>
+      <div class="step"><b>Play</b><span>Press Step. Drag sliders. Watch what changes.</span></div>
+      <div class="step"><b>Under the hood</b><span>Math, pseudo-code and a Python class, in tabs.</span></div>
+      <div class="step"><b>Remember it</b><span>Three lines and a quick check.</span></div>
+    </div>
+  </section>
+</main>
+
+<footer id="site-foot"></footer>
+
+<script src="assets/js/viz.js"></script>
+<script src="assets/js/ml.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/pages/home.js"></script>
+</body>
+</html>
