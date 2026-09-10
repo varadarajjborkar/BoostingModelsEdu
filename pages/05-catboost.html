@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CatBoost · Boosting, Visually</title>
+<meta name="description" content="CatBoost explained with pictures: categories to numbers without leaking the answer, ordered target statistics, symmetric trees.">
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-page="05-catboost" data-root="../">
+<header id="site-nav"></header>
+
+<main>
+  <section class="wrap hero">
+    <div class="kicker"><span class="dot"></span>Chapter 05 · CatBoost</div>
+    <h1>CatBoost: categories, <em>no cheating</em></h1>
+    <p class="big-idea">Real data is full of words: city, brand, colour. CatBoost turns them into numbers without ever peeking at the answer, and grows neat, balanced trees.</p>
+    <div class="meta-row"><span class="pill">≈ 18 min</span><span class="pill">4 things to play with</span><span class="pill">★ Core model</span></div>
+  </section>
+
+  <!-- Metaphor -->
+  <section class="wrap" style="padding-bottom:40px">
+    <div class="metaphor">
+      <div class="art">
+        <svg viewBox="0 0 240 160" role="img" aria-label="People in a waiting line, each only looking at the people in front">
+          <line x1="10" y1="118" x2="230" y2="118" stroke="var(--rule-2)" stroke-width="2"/>
+          <g>
+            <circle cx="30" cy="70" r="10" fill="var(--c1)"/><rect x="21" y="84" width="18" height="30" rx="8" fill="var(--c1-wash)" stroke="var(--c1)"/>
+            <circle cx="70" cy="70" r="10" fill="var(--c2)"/><rect x="61" y="84" width="18" height="30" rx="8" fill="var(--c2-wash)" stroke="var(--c2)"/>
+            <circle cx="110" cy="70" r="10" fill="var(--c1)"/><rect x="101" y="84" width="18" height="30" rx="8" fill="var(--c1-wash)" stroke="var(--c1)"/>
+            <circle cx="150" cy="70" r="10" fill="var(--c3)"/><rect x="141" y="84" width="18" height="30" rx="8" fill="var(--c3-wash)" stroke="var(--c3)"/>
+            <circle cx="200" cy="70" r="12" fill="var(--c1)" stroke="var(--ink)" stroke-width="2"/><rect x="189" y="86" width="22" height="30" rx="9" fill="var(--c1-wash)" stroke="var(--ink)" stroke-width="1.5"/>
+          </g>
+          <path d="M186,56 Q120,20 34,52" fill="none" stroke="var(--ink-2)" stroke-width="1.5"/>
+          <path d="M40,46 L33,53 L43,56" fill="none" stroke="var(--ink-2)" stroke-width="1.5"/>
+          <text x="110" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="var(--ink-2)">only looks at people in front</text>
+          <text x="200" y="136" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="var(--ink)">you</text>
+          <text x="90" y="136" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="var(--muted)">earlier in the line</text>
+        </svg>
+      </div>
+      <div>
+        <div class="label">Picture this</div>
+        <h3>The waiting line</h3>
+        <p>People stand in a line outside restaurants. Each person wants to know "how good is my restaurant?". The rule: you may only use reviews from people <b>ahead of you</b> who picked the same place. Never your own review. That way nobody can fool themselves.</p>
+        <div class="story-map">
+          <span class="s">People in a line</span><span class="arrow">→</span><span class="m">rows in a random order</span>
+          <span class="s">Which restaurant</span><span class="arrow">→</span><span class="m">a category value (city, brand…)</span>
+          <span class="s">Average review of people ahead</span><span class="arrow">→</span><span class="m">ordered target statistic</span>
+          <span class="s">Never reading your own review</span><span class="arrow">→</span><span class="m">no target leakage</span>
+          <span class="s">Same form for everyone</span><span class="arrow">→</span><span class="m">symmetric (oblivious) tree</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1. The problem -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>Words are not numbers</h2>
+      <p class="lede">Trees need numbers. So how do we feed them "Pune", "Delhi", "Chennai"? Three common ways:</p>
+    </div>
+    <div class="tiles">
+      <div class="tile"><span class="ic">🧱</span><b>One column per value</b><span>"is_Pune", "is_Delhi"… Fine for 5 cities. Terrible for 5,000 shop ids: 5,000 mostly empty columns.</span></div>
+      <div class="tile"><span class="ic">🔢</span><b>Number them 1, 2, 3</b><span>Invents a fake order. Is Delhi "bigger" than Pune? The tree will think so.</span></div>
+      <div class="tile"><span class="ic">🎯</span><b>Use the average answer</b><span>"In Pune, 70% said yes" → 0.7. Very powerful, one column. <b>But it can cheat.</b> See below.</span></div>
+    </div>
+  </section>
+
+  <!-- 2. Leak -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>The cheat, caught on camera</h2>
+      <p class="lede">Here the answer is a pure coin flip. The shop id has <mark>no link</mark> to it at all. Watch what happens if each row's "average answer" includes its own answer.</p>
+    </div>
+    <div class="viz" id="lk-viz">
+      <div class="controls"><button class="btn" id="lk-new" type="button">New random data</button></div>
+      <div class="grid-2-1">
+        <div>
+          <div class="panel-title">Accuracy of a model that only uses the encoded shop id</div>
+          <div class="plot"></div>
+          <div class="legend">
+            <span><i class="sq" style="background:var(--ink-2)"></i>on its own training rows</span>
+            <span><i class="sq" style="background:var(--c3)"></i>on new rows</span>
+          </div>
+        </div>
+        <div>
+          <div class="panel-title">A few rows</div>
+          <div id="lk-table"></div>
+          <p class="say-live" id="lk-say"></p>
+        </div>
+      </div>
+    </div>
+    <div class="note blue"><span class="ic">🕵️</span><span><b>Why the cheat works:</b> a shop seen only once gets the value (its own answer + a little prior) ÷ 2. So the "feature" secretly <b>contains the answer</b>. That is called target leakage.</span></div>
+  </section>
+
+  <!-- 3. Queue -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>The fix: only look at the line in front</h2>
+      <p class="lede">CatBoost shuffles the rows into a random line. Each row's number uses only the rows <mark>before it</mark> with the same category, plus a small prior so empty history is not zero.</p>
+    </div>
+    <div class="viz" id="qu-viz">
+      <div class="viz-top">
+        <span class="viz-title">Step through the line. Green rows = what the current row is allowed to see.</span>
+        <span class="viz-hint">prior p = 0.5, prior weight a = 1</span>
+      </div>
+      <div class="controls">
+        <div class="btn-row">
+          <button class="btn primary" data-act="step" type="button">Step →</button>
+          <button class="btn" data-act="play" type="button">▶ Play</button>
+          <button class="btn" data-act="reset" type="button">Reset</button>
+        </div>
+      </div>
+      <div class="grid-2-1">
+        <div class="table-wrap" id="qu-table"></div>
+        <div>
+          <div class="panel-title">The number for the highlighted row</div>
+          <div class="formula" id="qu-formula">Press Step.</div>
+          <p class="say-live" id="qu-say"></p>
+        </div>
+      </div>
+    </div>
+    <div class="note green"><span class="ic">🔀</span><span><b>Extra trick:</b> CatBoost uses several different shuffles, so no row is always stuck at the front with no history. It also uses the same "only the past" idea when it computes leftovers during boosting (called <b>ordered boosting</b>).</span></div>
+  </section>
+
+  <!-- 4. Symmetric trees -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>Neat, balanced trees</h2>
+      <p class="lede">In a CatBoost tree, every level asks <mark>the same question</mark>. So the answers become a binary number, and the leaf is just a lookup. Flip the answers below.</p>
+    </div>
+    <div class="viz" id="ob-viz">
+      <div class="controls">
+        <span class="ctrl">Q1 · size &gt; 5? <span class="seg" id="ob-q1"><button data-v="0" class="on" type="button">no</button><button data-v="1" type="button">yes</button></span></span>
+        <span class="ctrl">Q2 · is red? <span class="seg" id="ob-q2"><button data-v="0" type="button">no</button><button data-v="1" class="on" type="button">yes</button></span></span>
+        <span class="ctrl">Q3 · weight &gt; 2? <span class="seg" id="ob-q3"><button data-v="0" class="on" type="button">no</button><button data-v="1" type="button">yes</button></span></span>
+      </div>
+      <div id="ob-tree"></div>
+      <div class="panel-title" style="margin-top:6px">The leaf table (2³ = 8 leaves)</div>
+      <div id="ob-leaves"></div>
+      <p class="say-live" id="ob-say"></p>
+    </div>
+    <div class="tiles" style="margin-top:20px">
+      <div class="tile"><span class="ic">⚡</span><b>Super fast answers</b><span>Depth 6 = 6 comparisons, then one table lookup. Great for apps that must answer instantly.</span></div>
+      <div class="tile"><span class="ic">🧘</span><b>Hard to overfit</b><span>One question per level is a strong rule. It keeps trees simple and steady.</span></div>
+      <div class="tile"><span class="ic">🎛️</span><b>Good out of the box</b><span>Together with ordered statistics, the default settings are often already strong.</span></div>
+    </div>
+  </section>
+
+  <!-- Under the hood -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">Hood</span>
+      <h2>Under the hood</h2>
+      <p class="lede">The formulas behind "no peeking" and "same question per level".</p>
+    </div>
+    <div class="hood" data-tabs>
+      <div class="tabs"><button class="tab" type="button">Math</button><button class="tab" type="button">Pseudo-code</button><button class="tab" type="button">Python (from scratch)</button><button class="tab" type="button">Using the library</button></div>
+
+      <div class="tab-panel">
+        <h4>1 · Target statistic with a prior</h4>
+        <div class="eq">$$\hat{x}_k = \frac{\displaystyle\sum_{j \in \mathcal{D}_k} [x_j = x_k]\; y_j \;+\; a\,p}{\displaystyle\sum_{j \in \mathcal{D}_k} [x_j = x_k] \;+\; a}$$</div>
+        <p class="say"><b>Say it:</b> (answers of rows with the same category + a little prior) ÷ (how many such rows + the prior's weight). $p$ is the overall average, $a$ says how much we trust it.</p>
+        <h4>2 · Which rows are allowed ($\mathcal{D}_k$)?</h4>
+        <div class="table-wrap">
+          <table class="t">
+            <thead><tr><th>Version</th><th>$\mathcal{D}_k$</th><th>Problem</th></tr></thead>
+            <tbody>
+              <tr><td>Greedy (leaky)</td><td>all rows, including $k$ itself</td><td>row $k$'s own answer $y_k$ is inside its feature</td></tr>
+              <tr><td>Ordered (CatBoost)</td><td>rows before $k$ in a random order $\sigma$: $\{ j : \sigma(j) &lt; \sigma(k) \}$</td><td>none: $y_k$ is never used for row $k$</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h4>3 · Symmetric tree: the leaf address</h4>
+        <div class="eq">$$\text{leaf}(x) = \sum_{d=1}^{D} 2^{\,D-d}\; \big[\, x_{f_d} > t_d \,\big]$$</div>
+        <p class="say"><b>Say it:</b> ask the $D$ level questions, write the answers as 1s and 0s, read that as a binary number. Value = table[leaf].</p>
+        <h4>4 · Ordered boosting (the same idea for leftovers)</h4>
+        <div class="eq">$$r_k = y_k - M_{\sigma(k)-1}(x_k)$$</div>
+        <p class="say"><b>Say it:</b> the leftover of row $k$ is measured by a model that learned only from rows before it. So leftovers are honest too.</p>
+      </div>
+
+      <div class="tab-panel">
+<pre class="pseudo"><b>to turn a category column into numbers</b> (ordered target statistics):
+  shuffle the rows into a random line
+  <b>for each</b> row, from the front of the line to the back:
+     look only at <u>earlier</u> rows with the same category
+     number = (sum of their answers + a × prior) / (how many + a)
+  <i>(repeat with a few different shuffles)</i>
+
+<b>to grow a symmetric tree</b> of depth D:
+  <b>for each</b> level 1 … D:
+     try every candidate question on <u>all current leaves at once</u>
+     keep the one question with the best total gain
+     every node on this level asks that same question
+  leaf address = the yes/no answers read as a binary number
+  leaf value   = - (sum of g) / (sum of h + λ)</pre>
+      </div>
+
+      <div class="tab-panel">
+        <p class="muted" style="font-size:14.5px">Runnable with just numpy. File: <code>code/catboost_lite.py</code></p>
+        <!-- CODE:catboost_lite.py -->
+<pre class="code"><code class="language-python">"""
+CatBoost's two big ideas, built from scratch ("lite").
+
+The idea (same as on the page):
+    1. ORDERED TARGET STATISTICS: turn a category (a word, like a city) into a number:
+       "for this category, how often was the answer 1?"
+       But each row may only look at rows that came BEFORE it in a random order,
+       so it can never peek at its own answer.
+    2. SYMMETRIC TREES: every level of the tree asks the SAME question.
+       The yes/no answers then form a binary number: the address of the leaf.
+
+Needs only numpy.   Run it with:   python catboost_lite.py
+"""
+import numpy as np
+
+
+# --------------------------------------------- idea 1: categories -&gt; numbers
+def greedy_target_encode(categories, y, prior, a=1.0):
+    """The LEAKY way: every row uses ALL rows of its category, including itself."""
+    encoded = np.zeros(len(y))
+    for i, cat in enumerate(categories):
+        same = categories == cat
+        encoded[i] = (y[same].sum() + a * prior) / (same.sum() + a)
+    return encoded
+
+
+def ordered_target_encode(categories, y, prior, a=1.0, seed=0):
+    """The CatBoost way: shuffle the rows into a queue, each row only uses rows BEFORE it."""
+    queue = np.random.default_rng(seed).permutation(len(y))
+    seen_sum, seen_count = {}, {}                     # running totals per category
+    encoded = np.zeros(len(y))
+    for i in queue:                                   # walk the queue from front to back
+        cat = categories[i]
+        s, c = seen_sum.get(cat, 0.0), seen_count.get(cat, 0)
+        encoded[i] = (s + a * prior) / (c + a)        # row i itself is NOT counted yet
+        seen_sum[cat] = s + y[i]                      # now row i joins the "seen" rows
+        seen_count[cat] = c + 1
+    return encoded
+
+
+def encode_new_rows(train_categories, train_y, new_categories, prior, a=1.0):
+    """New data may use ALL training rows: none of them is the new row's own answer."""
+    encoded = np.zeros(len(new_categories))
+    for i, cat in enumerate(new_categories):
+        same = train_categories == cat
+        encoded[i] = (train_y[same].sum() + a * prior) / (same.sum() + a)
+    return encoded
+
+
+# ------------------------------------------------------ idea 2: symmetric trees
+class SymmetricTree:
+    """A depth-D tree where every level asks ONE question, shared by all its nodes."""
+
+    def __init__(self, depth=4, lam=3.0, n_cuts=16):
+        self.depth = depth
+        self.lam = lam                     # the brake on leaf values (l2_leaf_reg in CatBoost)
+        self.n_cuts = n_cuts
+
+    def leaf_index(self, X):
+        """Read the yes/no answers as a binary number: yes, no, yes -&gt; 1 0 1 -&gt; leaf 5."""
+        index = np.zeros(len(X), dtype=int)
+        for feature, threshold in self.questions:
+            index = index * 2 + (X[:, feature] &gt; threshold)
+        return index
+
+    def total_score(self, index, g, h):
+        """How good is this set of leaves? Add up every leaf's similarity score."""
+        G = np.bincount(index, weights=g)
+        H = np.bincount(index, weights=h)
+        return np.sum(G ** 2 / (H + self.lam))
+
+    def fit(self, X, g, h):
+        self.questions = []
+        for level in range(self.depth):
+            current = self.leaf_index(X)                 # which leaf every row sits in right now
+            best = None
+            for feature in range(X.shape[1]):
+                percentiles = np.linspace(0, 100, self.n_cuts + 2)[1:-1]
+                for threshold in np.unique(np.percentile(X[:, feature], percentiles)):
+                    # the SAME question is asked in every current leaf
+                    new_index = current * 2 + (X[:, feature] &gt; threshold)
+                    score = self.total_score(new_index, g, h)
+                    if best is None or score &gt; best[0]:
+                        best = (score, feature, threshold)
+            self.questions.append((best[1], best[2]))
+
+        # every leaf gets its value, -G / (H + lambda)
+        index = self.leaf_index(X)
+        n_leaves = 2 ** self.depth
+        G = np.bincount(index, weights=g, minlength=n_leaves)
+        H = np.bincount(index, weights=h, minlength=n_leaves)
+        self.leaf_values = -G / (H + self.lam)
+        return self
+
+    def predict(self, X):
+        return self.leaf_values[self.leaf_index(X)]      # one lookup, very fast
+
+
+# ---------------------------------------------------------------- the booster
+class CatBoostLite:
+    def __init__(self, n_trees=60, learning_rate=0.2, depth=4, lam=3.0, encoding="ordered"):
+        self.n_trees = n_trees
+        self.learning_rate = learning_rate
+        self.depth = depth
+        self.lam = lam
+        self.encoding = encoding           # "ordered" (CatBoost) or "greedy" (leaky, for comparison)
+
+    def training_table(self, X_num, cats, y):
+        """Numbers + encoded categories, the way the model sees its OWN training rows."""
+        columns = [X_num]
+        for j in range(cats.shape[1]):
+            if self.encoding == "ordered":
+                enc = ordered_target_encode(cats[:, j], y, self.prior, seed=j)
+            else:
+                enc = greedy_target_encode(cats[:, j], y, self.prior)
+            columns.append(enc.reshape(-1, 1))
+        return np.hstack(columns)
+
+    def new_table(self, X_num, cats):
+        columns = [X_num]
+        for j in range(cats.shape[1]):
+            enc = encode_new_rows(self.train_cats[:, j], self.train_y, cats[:, j], self.prior)
+            columns.append(enc.reshape(-1, 1))
+        return np.hstack(columns)
+
+    def fit(self, X_num, cats, y):
+        self.prior = y.mean()
+        self.train_cats, self.train_y = cats, y
+        X = self.training_table(X_num, cats, y)
+
+        raw = np.zeros(len(y))                            # raw score 0 = a 50% chance
+        self.trees = []
+        for _ in range(self.n_trees):
+            p = 1 / (1 + np.exp(-raw))
+            g, h = p - y, p * (1 - p)                     # slope and curve of the log-loss
+            tree = SymmetricTree(self.depth, self.lam).fit(X, g, h)
+            raw = raw + self.learning_rate * tree.predict(X)
+            self.trees.append(tree)
+
+        self.training_accuracy = np.mean((raw &gt; 0) == y)
+        return self
+
+    def predict(self, X_num, cats):
+        X = self.new_table(X_num, cats)
+        raw = sum(self.learning_rate * tree.predict(X) for tree in self.trees)
+        return (raw &gt; 0).astype(int)
+
+
+# ---------------------------------------------------------------------- try it
+if __name__ == "__main__":
+    rng = np.random.default_rng(5)
+    n = 3000
+    city = rng.integers(0, 6, n)                  # 6 cities: this REALLY matters
+    shop = rng.integers(0, 1500, n)               # 1,500 shop ids: pure noise, most seen once or twice
+    x = rng.normal(size=n)                        # one ordinary number column
+    city_effect = np.array([-1.5, -0.8, 0.0, 0.5, 1.0, 1.8])
+    chance = 1 / (1 + np.exp(-(city_effect[city] + 0.8 * x)))
+    y = (rng.random(n) &lt; chance).astype(float)
+
+    cats = np.column_stack([city, shop])
+    X_num = x.reshape(-1, 1)
+    tr, new = slice(0, 2000), slice(2000, None)
+
+    print("encoding | accuracy on training data | accuracy on new data")
+    for encoding in ["greedy", "ordered"]:
+        model = CatBoostLite(encoding=encoding).fit(X_num[tr], cats[tr], y[tr])
+        new_acc = np.mean(model.predict(X_num[new], cats[new]) == y[new])
+        print(f"{encoding:8} | {model.training_accuracy:25.0%} | {new_acc:20.0%}")
+
+    # What to notice:
+    #  Greedy encoding looks amazing on training data: the useless shop ids "know" the answers,
+    #  because each row's encoding contains its own label. On new data that trick stops working.
+    #  Ordered encoding is honest: training and new-data accuracy stay close.
+</code></pre>
+<!-- /CODE -->
+      </div>
+
+      <div class="tab-panel">
+<pre class="code"><code class="language-python">from catboost import CatBoostClassifier
+
+model = CatBoostClassifier(
+    iterations=2000,              # the most trees it may build
+    learning_rate=0.05,           # size of each step
+    depth=6,                      # symmetric trees: 6 questions, 2^6 = 64 leaves
+    l2_leaf_reg=3,                # λ: the brake on leaf values
+    loss_function="Logloss",
+    eval_metric="AUC",
+    early_stopping_rounds=100,    # stop when validation stops improving
+    verbose=200,
+)
+model.fit(
+    X_train, y_train,
+    cat_features=["city", "brand", "shop_id"],   # just name the word columns: no one-hot needed
+    eval_set=(X_valid, y_valid),
+)
+print(model.get_feature_importance(prettified=True).head())</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Remember + quiz -->
+  <section class="sec wrap">
+    <div class="remember">
+      <h3>Remember it</h3>
+      <ol>
+        <li>Categories → numbers with target averages, but each row only sees rows before it.</li>
+        <li>Symmetric trees: same question per level → fast lookups, steady trees.</li>
+        <li>Just pass cat_features. Strong defaults, little tuning.</li>
+      </ol>
+    </div>
+    <div class="quiz-list">
+      <div class="quiz" data-answer="1">
+        <div class="q">A shop appears only once. With the greedy (leaky) encoding, its number contains…</div>
+        <div class="opts"><button class="opt" type="button">nothing useful</button><button class="opt" type="button">its own answer</button><button class="opt" type="button">the answers of other shops</button></div>
+        <p class="why">(its answer + a·p) / (1 + a). The label is baked into the feature: a leak.</p>
+      </div>
+      <div class="quiz" data-answer="0">
+        <div class="q">With ordered target statistics, row #7 in the shuffled line may use…</div>
+        <div class="opts"><button class="opt" type="button">only rows #1 to #6 with the same category</button><button class="opt" type="button">every row with the same category</button><button class="opt" type="button">only rows after it</button></div>
+        <p class="why">Only the people in front of you in the line. Never yourself, never those behind.</p>
+      </div>
+      <div class="quiz" data-answer="0">
+        <div class="q">A symmetric tree has depth 3. How many different questions does it ask?</div>
+        <div class="opts"><button class="opt" type="button">3</button><button class="opt" type="button">7</button><button class="opt" type="button">8</button></div>
+        <p class="why">One question per level, shared by every node on that level. 3 questions, 8 leaves.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav id="pager"></nav>
+<footer id="site-foot"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="../assets/js/viz.js"></script>
+<script src="../assets/js/ml.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/pages/catboost.js"></script>
+</body>
+</html>

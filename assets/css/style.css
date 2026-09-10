@@ -350,6 +350,18 @@ table.t tr:last-child td { border-bottom: 0; }
 table.t td.num { font-variant-numeric: tabular-nums; text-align: right; }
 table.t code { white-space: nowrap; }
 
+/* queue table (CatBoost ordered target statistics) */
+table.qt th, table.qt td { text-align: center; padding: 8px 10px; }
+table.qt tr td { transition: background .25s, opacity .25s; }
+table.qt tr.future td { opacity: .35; }
+table.qt tr.seen td { background: var(--c3-wash); }
+table.qt tr.active td { background: var(--c4-wash); font-weight: 600; }
+.chip { display: inline-block; padding: 2px 10px; border-radius: 999px; font: 500 12.5px var(--sans); border: 1px solid; }
+.chip.a { background: var(--c1-wash); border-color: var(--c1); }
+.chip.b { background: var(--c2-wash); border-color: var(--c2); }
+.chip.c { background: var(--c3-wash); border-color: var(--c3); }
+.formula { font: 500 15px var(--mono); background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 14px; margin-top: 10px; overflow-x: auto; }
+
 /* ---------- Pager & footer ---------- */
 .pager { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-block: 44px 16px; }
 .pager a {

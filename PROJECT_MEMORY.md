@@ -151,8 +151,8 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
   live pruning tree, missing-value default path, speed tiles; shared `drawTree` in xgboost.js)
 - [x] Phase 6: LightGBM (post-office metaphor, buckets viz, level vs leaf-wise race `#lw=N`,
   GOSS bars, EFB table, lightgbm_lite.py)
-- [ ] Phase 7: CatBoost (written: waiting-line metaphor, leak simulation, queue stepper table,
-  symmetric tree toggles, catboost_lite.py; screenshot check, then commit)
+- [x] Phase 7: CatBoost (waiting-line metaphor, leak simulation, queue stepper table `#qu=N`,
+  symmetric tree toggles, catboost_lite.py)
 - [ ] Phase 8: Face-off / comparison
 - [ ] Phase 9: polish, screenshot check, README
 
