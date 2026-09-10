@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LightGBM · Boosting, Visually</title>
+<meta name="description" content="LightGBM explained with pictures: histogram buckets, leaf-wise growth, GOSS sampling and feature bundling.">
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-page="04-lightgbm" data-root="../">
+<header id="site-nav"></header>
+
+<main>
+  <section class="wrap hero">
+    <div class="kicker"><span class="dot"></span>Chapter 04 · LightGBM</div>
+    <h1>LightGBM: built for <em>speed</em></h1>
+    <p class="big-idea">The same boosting idea with four speed tricks: put numbers into buckets, grow the most useful leaf first, study the hard dots closely, and pack lonely columns together.</p>
+    <div class="meta-row"><span class="pill">≈ 18 min</span><span class="pill">4 things to play with</span><span class="pill">★ Core model</span></div>
+  </section>
+
+  <!-- Metaphor -->
+  <section class="wrap" style="padding-bottom:40px">
+    <div class="metaphor">
+      <div class="art">
+        <svg viewBox="0 0 240 170" role="img" aria-label="A post office shelf of pigeonholes with stacks of letters">
+          <rect x="8" y="20" width="224" height="104" rx="8" fill="var(--paper)" stroke="var(--ink-2)" stroke-width="1.5"/>
+          <g stroke="var(--rule-2)" stroke-width="1.5">
+            <line x1="45" y1="20" x2="45" y2="124"/><line x1="82" y1="20" x2="82" y2="124"/><line x1="119" y1="20" x2="119" y2="124"/>
+            <line x1="156" y1="20" x2="156" y2="124"/><line x1="193" y1="20" x2="193" y2="124"/>
+          </g>
+          <g fill="var(--card)" stroke="var(--c3)" stroke-width="1.2">
+            <rect x="14" y="108" width="26" height="12" rx="2"/><rect x="14" y="94" width="26" height="12" rx="2"/>
+            <rect x="51" y="108" width="26" height="12" rx="2"/><rect x="51" y="94" width="26" height="12" rx="2"/><rect x="51" y="80" width="26" height="12" rx="2"/><rect x="51" y="66" width="26" height="12" rx="2"/>
+            <rect x="88" y="108" width="26" height="12" rx="2"/><rect x="88" y="94" width="26" height="12" rx="2"/><rect x="88" y="80" width="26" height="12" rx="2"/><rect x="88" y="66" width="26" height="12" rx="2"/><rect x="88" y="52" width="26" height="12" rx="2"/><rect x="88" y="38" width="26" height="12" rx="2"/>
+            <rect x="125" y="108" width="26" height="12" rx="2"/><rect x="125" y="94" width="26" height="12" rx="2"/><rect x="125" y="80" width="26" height="12" rx="2"/><rect x="125" y="66" width="26" height="12" rx="2"/><rect x="125" y="52" width="26" height="12" rx="2"/>
+            <rect x="162" y="108" width="26" height="12" rx="2"/><rect x="162" y="94" width="26" height="12" rx="2"/><rect x="162" y="80" width="26" height="12" rx="2"/>
+            <rect x="199" y="108" width="26" height="12" rx="2"/>
+          </g>
+          <rect x="88" y="24" width="26" height="12" rx="2" fill="var(--c2)"/>
+          <text x="120" y="146" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="var(--ink-2)">6 pigeonholes, not 1,000 exact addresses</text>
+          <text x="120" y="160" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="var(--muted)">the red letter = a "hard" one, read first</text>
+        </svg>
+      </div>
+      <div>
+        <div class="label">Picture this</div>
+        <h3>The smart post office</h3>
+        <p>A clerk has to sort a mountain of letters. Instead of reading every exact address, they drop letters into a few <b>pigeonholes</b>. They deal with the <b>biggest pile first</b>. They read the problem letters carefully and only <b>skim a few easy ones</b>. And letters that never travel together share <b>one box</b>.</p>
+        <div class="story-map">
+          <span class="s">Pigeonholes, not exact addresses</span><span class="arrow">→</span><span class="m">histogram buckets (max_bin)</span>
+          <span class="s">Biggest pile first</span><span class="arrow">→</span><span class="m">leaf-wise growth (num_leaves)</span>
+          <span class="s">Read hard letters, skim easy ones</span><span class="arrow">→</span><span class="m">GOSS sampling</span>
+          <span class="s">Never-together letters share a box</span><span class="arrow">→</span><span class="m">EFB (feature bundling)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1. Buckets -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>Put the numbers into buckets</h2>
+      <p class="lede">Checking every possible cut is slow. LightGBM sorts values into a few buckets <mark>once</mark>, then only tries the bucket edges. Fewer checks, almost the same answer.</p>
+    </div>
+    <div class="viz" id="bn-viz">
+      <div class="controls">
+        <label class="ctrl">Number of buckets <input type="range" id="bn-k" min="0" max="6" step="1" value="3"><output for="bn-k"></output></label>
+      </div>
+      <div class="grid-2-1">
+        <div>
+          <div class="panel-title">300 dots: feature value → leftover. Grey lines = bucket edges.</div>
+          <div class="plot"></div>
+          <div class="panel-title" style="margin-top:6px">What LightGBM keeps: the sum of leftovers in each bucket</div>
+          <div id="bn-hist"></div>
+        </div>
+        <div>
+          <div class="stats two" style="margin-top:0">
+            <div class="stat"><div class="k">Cuts to check (exact)</div><div class="v" id="bn-exact-n">299</div></div>
+            <div class="stat good"><div class="k">Cuts to check (buckets)</div><div class="v" id="bn-cuts">15</div></div>
+            <div class="stat"><div class="k">Best gain (exact)</div><div class="v" id="bn-exact">0</div></div>
+            <div class="stat"><div class="k">Best gain (buckets)</div><div class="v" id="bn-binned">0</div></div>
+          </div>
+          <p class="say-live" id="bn-say"></p>
+          <div class="legend">
+            <span><i class="ln" style="background:var(--ink)"></i>best exact cut</span>
+            <span><i class="ln" style="background:var(--c2)"></i>best bucket cut</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Leaf-wise -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>Grow the most useful leaf first</h2>
+      <p class="lede">Most trees grow <b>level by level</b>, like filling a pyramid. LightGBM grows <b>leaf-wise</b>: every step it splits the one leaf that lowers the error the most, wherever it is.</p>
+    </div>
+    <div class="viz" id="gw-viz">
+      <div class="viz-top">
+        <span class="viz-title">Both trees get one new split per Step. Numbers show the order of splits.</span>
+        <span class="viz-hint">shading = each leaf's answer</span>
+      </div>
+      <div class="controls">
+        <div class="btn-row">
+          <button class="btn primary" data-act="step" type="button">Step →</button>
+          <button class="btn" data-act="play" type="button">▶ Play</button>
+          <button class="btn" data-act="reset" type="button">Reset</button>
+        </div>
+        <span class="muted" style="font-size:14px">Leaves: <b id="gw-n">1</b></span>
+      </div>
+      <div class="grid-2">
+        <div>
+          <div class="panel-title">Level-wise (the usual way) <span class="muted" id="gw-level-err"></span></div>
+          <div class="gw-level-map"></div>
+          <div class="gw-level-tree"></div>
+        </div>
+        <div>
+          <div class="panel-title">Leaf-wise (LightGBM) <span class="muted" id="gw-leaf-err"></span></div>
+          <div class="gw-leaf-map"></div>
+          <div class="gw-leaf-tree"></div>
+        </div>
+      </div>
+      <div class="panel-title" style="margin-top:14px">Error as leaves are added</div>
+      <div id="gw-chart"></div>
+      <div class="legend">
+        <span><i class="ln" style="background:var(--ink-2)"></i>level-wise</span>
+        <span><i class="ln" style="background:var(--c3)"></i>leaf-wise</span>
+      </div>
+      <p class="say-live" id="gw-say"></p>
+    </div>
+    <div class="note blue"><span class="ic">⚠️</span><span><b>The catch:</b> leaf-wise trees can grow very deep and lopsided, and overfit on small data. That is why LightGBM's main knobs are <code>num_leaves</code>, <code>max_depth</code> and <code>min_child_samples</code>.</span></div>
+  </section>
+
+  <!-- 3. GOSS -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>Study the hard dots, skim the easy ones (GOSS)</h2>
+      <p class="lede">Dots with a big leftover teach the most. GOSS keeps all the hard dots, takes a small random sample of the easy ones, and makes each sampled easy dot <mark>count extra</mark> so the totals stay fair.</p>
+    </div>
+    <div class="viz" id="gs-viz">
+      <div class="controls">
+        <label class="ctrl">Keep hardest <input type="range" id="gs-a" min="5" max="50" step="5" value="20"><output for="gs-a"></output></label>
+        <label class="ctrl">Sample of the rest <input type="range" id="gs-b" min="5" max="50" step="5" value="10"><output for="gs-b"></output></label>
+        <button class="btn" id="gs-new" type="button">New random sample</button>
+      </div>
+      <div class="panel-title">100 dots, sorted from hardest (biggest leftover) to easiest</div>
+      <div class="plot"></div>
+      <div class="stats">
+        <div class="stat"><div class="k">Dots used for this tree</div><div class="v" id="gs-used">30</div></div>
+        <div class="stat"><div class="k">Each sampled easy dot counts</div><div class="v" id="gs-w">×8</div></div>
+        <div class="stat"><div class="k">Total leftover (true)</div><div class="v" id="gs-true">0</div></div>
+        <div class="stat good"><div class="k">Total leftover (GOSS estimate)</div><div class="v" id="gs-est">0</div></div>
+      </div>
+      <div class="legend">
+        <span><i class="sq" style="background:var(--c2)"></i>hard dots, always kept</span>
+        <span><i class="sq" style="background:var(--c1)"></i>sampled easy dots</span>
+        <span><i class="sq" style="background:var(--c1-wash);outline:1px solid var(--c1)"></i>extra weight they carry</span>
+        <span><i class="sq" style="background:var(--rule)"></i>skipped this time</span>
+      </div>
+      <p class="say-live" id="gs-say"></p>
+    </div>
+  </section>
+
+  <!-- 4. EFB -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>Pack lonely columns together (EFB)</h2>
+      <p class="lede">Some columns are almost always zero, and never non-zero at the same time, like "is red", "is green", "is blue". LightGBM squeezes them into <mark>one</mark> column without losing anything.</p>
+    </div>
+    <div class="viz" id="ef-viz">
+      <div class="controls">
+        <div class="seg" id="ef-mode"><button data-v="before" class="on" type="button">Before bundling</button><button data-v="after" type="button">After bundling</button></div>
+      </div>
+      <div class="grid-2-1">
+        <div class="plot"></div>
+        <div>
+          <div class="stats two" style="margin-top:0">
+            <div class="stat"><div class="k">Columns</div><div class="v" id="ef-cols">4</div></div>
+            <div class="stat good"><div class="k">Rows where two overlap</div><div class="v">0</div></div>
+          </div>
+          <p class="say-live" id="ef-say"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Under the hood -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">Hood</span>
+      <h2>Under the hood</h2>
+      <p class="lede">The split math is the same as XGBoost. The new parts are about doing less work.</p>
+    </div>
+    <div class="hood" data-tabs>
+      <div class="tabs"><button class="tab" type="button">Math</button><button class="tab" type="button">Pseudo-code</button><button class="tab" type="button">Python (from scratch)</button><button class="tab" type="button">Using the library</button></div>
+
+      <div class="tab-panel">
+        <h4>1 · Histograms: sum inside each bucket</h4>
+        <div class="eq">$$G_b = \sum_{i \in \text{bucket } b} g_i, \qquad H_b = \sum_{i \in \text{bucket } b} h_i, \qquad G_L(k) = \sum_{b \le k} G_b$$</div>
+        <p class="say"><b>Say it:</b> add up the slopes (and curves) in every bucket once. Then the left side of cut $k$ is just a running total over buckets. Work per feature: number of buckets, not number of rows.</p>
+        <h4>2 · Same gain as XGBoost</h4>
+        <div class="eq">$$\text{Gain}(k) = \frac{G_L^2}{H_L + \lambda} + \frac{G_R^2}{H_R + \lambda} - \frac{(G_L + G_R)^2}{H_L + H_R + \lambda}$$</div>
+        <h4>3 · Leaf-wise growth</h4>
+        <div class="eq">$$\ell^{*} = \arg\max_{\ell \,\in\, \text{current leaves}} \ \text{best Gain}(\ell) \qquad \text{split } \ell^{*}, \text{ repeat until num\_leaves}$$</div>
+        <p class="say"><b>Say it:</b> look at every leaf you have right now, split the one with the best possible gain.</p>
+        <h4>4 · GOSS weights</h4>
+        <div class="eq">$$\text{keep top } a \text{ by } |g_i|, \quad \text{sample } b \text{ of the rest}, \quad \text{weight of each sampled one} = \frac{1-a}{b}$$</div>
+        <p class="say"><b>Say it:</b> with $a = 20\%$ and $b = 10\%$, each sampled easy dot stands in for $0.8 / 0.1 = 8$ easy dots.</p>
+        <h4>5 · EFB offsets</h4>
+        <div class="eq">$$\text{bundle} = \begin{cases} 1 & \text{if is\_red} \\ 2 & \text{if is\_green} \\ 3 & \text{if is\_blue} \\ \dots \end{cases}$$</div>
+        <p class="say"><b>Say it:</b> give each packed column its own range of values (an offset), so the bundle still tells them apart.</p>
+      </div>
+
+      <div class="tab-panel">
+<pre class="pseudo"><b>once, before training</b>:
+  put every feature into buckets (about 255 per feature)
+
+<b>for each tree</b>:
+  <i>Step 1. Pick the dots (GOSS)</i>
+     keep the dots with the biggest leftovers
+     randomly sample some of the others, and give them extra weight
+
+  <i>Step 2. Grow leaf-wise</i>
+     start with one leaf holding those dots
+     <b>repeat</b> until the tree has num_leaves leaves:
+        for every leaf: build its bucket histogram, find its best cut
+        split the leaf with the <u>biggest gain</u> (wherever it is)
+
+  <i>Step 3. Leaf values and a small step</i>
+     leaf value = - (sum of g) / (sum of h + λ)
+     guess = guess + learning_rate × tree(x)</pre>
+      </div>
+
+      <div class="tab-panel">
+        <p class="muted" style="font-size:14.5px">Runnable with just numpy. File: <code>code/lightgbm_lite.py</code></p>
+        <!-- CODE:lightgbm_lite.py -->
+<pre class="code"><code class="language-python">"""
+LightGBM's main speed ideas, built from scratch ("lite": the ideas, not the C++ speed).
+
+The idea (same as on the page):
+    It is gradient boosting, made fast with tricks:
+    1. BUCKETS: put every feature's values into a few buckets (a histogram), once.
+       After that, only the bucket edges are tried as cuts.
+    2. LEAF-WISE: grow the tree by always splitting the ONE leaf that helps most,
+       until the tree has num_leaves leaves.
+    3. GOSS: keep the dots with big leftovers (the hard ones) and only a random
+       sample of the easy ones. The sampled easy dots count extra, to stay fair.
+
+Needs only numpy.   Run it with:   python lightgbm_lite.py
+"""
+import time
+import numpy as np
+
+
+# --------------------------------------------------------------- trick 1: buckets
+def make_bucket_edges(X, max_buckets=32):
+    """For every feature, pick bucket edges at evenly spaced percentiles."""
+    edges = []
+    for feature in range(X.shape[1]):
+        percentiles = np.linspace(0, 100, max_buckets + 1)[1:-1]
+        edges.append(np.unique(np.percentile(X[:, feature], percentiles)))
+    return edges
+
+
+def to_buckets(X, edges):
+    """Replace every value by its bucket number. Bucket b holds values &lt;= edges[b]."""
+    buckets = np.zeros(X.shape, dtype=int)
+    for feature, cut_points in enumerate(edges):
+        buckets[:, feature] = np.searchsorted(cut_points, X[:, feature], side="left")
+    return buckets
+
+
+# ------------------------------------------------------------------ trick 3: GOSS
+def goss_weights(leftover_size, top_rate, other_rate, rng):
+    """Keep the hardest dots, sample some easy ones, and give the easy ones extra weight."""
+    n = len(leftover_size)
+    hardest_first = np.argsort(-leftover_size)
+    n_top = int(top_rate * n)
+    n_other = int(other_rate * n)
+
+    top = hardest_first[:n_top]                          # always kept
+    easy = hardest_first[n_top:]
+    sampled = rng.choice(easy, size=n_other, replace=False)
+
+    weights = np.zeros(n)                                # weight 0 = not used for this tree
+    weights[top] = 1.0
+    weights[sampled] = (1 - top_rate) / other_rate      # each sampled easy dot stands in for several
+    return weights
+
+
+# ------------------------------------------------------------- trick 2: leaf-wise
+class LeafWiseTree:
+    def __init__(self, num_leaves=8, min_dots_in_leaf=10, lam=1.0):
+        self.num_leaves = num_leaves
+        self.min_dots_in_leaf = min_dots_in_leaf
+        self.lam = lam
+
+    def best_split(self, rows, buckets, g, h, n_buckets):
+        """Build a histogram for these rows, then try every bucket edge as a cut."""
+        G, H, N = g[rows].sum(), h[rows].sum(), len(rows)
+        parent = G ** 2 / (H + self.lam)
+        best = None
+
+        for feature in range(buckets.shape[1]):
+            b = buckets[rows, feature]
+            # Step A: fill the histogram, i.e. add up g, h and the count in every bucket
+            hist_g = np.bincount(b, weights=g[rows], minlength=n_buckets[feature])
+            hist_h = np.bincount(b, weights=h[rows], minlength=n_buckets[feature])
+            hist_n = np.bincount(b, minlength=n_buckets[feature])
+
+            # Step B: walk along the buckets from left to right with running totals
+            GL = HL = NL = 0.0
+            for edge in range(n_buckets[feature] - 1):
+                GL += hist_g[edge]
+                HL += hist_h[edge]
+                NL += hist_n[edge]
+                GR, HR, NR = G - GL, H - HL, N - NL
+                if NL &lt; self.min_dots_in_leaf or NR &lt; self.min_dots_in_leaf:
+                    continue
+                gain = GL ** 2 / (HL + self.lam) + GR ** 2 / (HR + self.lam) - parent
+                if best is None or gain &gt; best["gain"]:
+                    best = {"gain": gain, "feature": feature, "edge": edge}
+
+        return best
+
+    def fit(self, buckets, g, h, n_buckets, rows):
+        self.root = {"rows": rows}
+        self.root["split"] = self.best_split(rows, buckets, g, h, n_buckets)
+        leaves = [self.root]
+
+        while len(leaves) &lt; self.num_leaves:
+            # Step 1: among ALL current leaves, pick the one whose best split helps most
+            candidates = [leaf for leaf in leaves if leaf["split"] and leaf["split"]["gain"] &gt; 0]
+            if not candidates:
+                break
+            leaf = max(candidates, key=lambda l: l["split"]["gain"])
+
+            # Step 2: split that leaf into two new leaves
+            split = leaf["split"]
+            goes_left = buckets[leaf["rows"], split["feature"]] &lt;= split["edge"]
+            leaf["left"] = {"rows": leaf["rows"][goes_left]}
+            leaf["right"] = {"rows": leaf["rows"][~goes_left]}
+            for child in (leaf["left"], leaf["right"]):
+                child["split"] = self.best_split(child["rows"], buckets, g, h, n_buckets)
+            leaves.remove(leaf)
+            leaves += [leaf["left"], leaf["right"]]
+
+        # Step 3: every leaf gets its value, -G / (H + lambda), like XGBoost
+        for leaf in leaves:
+            leaf["value"] = -g[leaf["rows"]].sum() / (h[leaf["rows"]].sum() + self.lam)
+        return self
+
+    def predict(self, buckets):
+        out = np.zeros(len(buckets))
+        for i, row in enumerate(buckets):
+            node = self.root
+            while "left" in node:
+                split = node["split"]
+                node = node["left"] if row[split["feature"]] &lt;= split["edge"] else node["right"]
+            out[i] = node["value"]
+        return out
+
+
+# -------------------------------------------------------------------- the booster
+class LightGBMLite:
+    def __init__(self, n_trees=100, learning_rate=0.1, num_leaves=8, max_buckets=32,
+                 use_goss=True, top_rate=0.2, other_rate=0.1, seed=0):
+        self.n_trees = n_trees
+        self.learning_rate = learning_rate
+        self.num_leaves = num_leaves
+        self.max_buckets = max_buckets
+        self.use_goss = use_goss
+        self.top_rate = top_rate
+        self.other_rate = other_rate
+        self.rng = np.random.default_rng(seed)
+
+    def fit(self, X, y):
+        X = np.asarray(X, dtype=float)
+        y = np.asarray(y, dtype=float)
+
+        # Trick 1: bucket the data ONCE, before any tree is built
+        self.edges = make_bucket_edges(X, self.max_buckets)
+        buckets = to_buckets(X, self.edges)
+        n_buckets = [len(e) + 1 for e in self.edges]
+
+        self.start = y.mean()
+        guess = np.full(len(y), self.start)
+        self.trees, self.rows_used = [], []
+
+        for _ in range(self.n_trees):
+            g = guess - y                        # slope of the squared error
+            h = np.ones_like(y)                  # curve of the squared error
+
+            if self.use_goss:                    # Trick 3: GOSS picks which rows this tree sees
+                w = goss_weights(np.abs(g), self.top_rate, self.other_rate, self.rng)
+                rows = np.nonzero(w)[0]
+                g, h = g * w, h * w
+            else:
+                rows = np.arange(len(y))
+
+            tree = LeafWiseTree(self.num_leaves).fit(buckets, g, h, n_buckets, rows)   # Trick 2
+            guess = guess + self.learning_rate * tree.predict(buckets)
+            self.trees.append(tree)
+            self.rows_used.append(len(rows))
+
+        return self
+
+    def predict(self, X):
+        buckets = to_buckets(np.asarray(X, dtype=float), self.edges)
+        guess = np.full(len(buckets), self.start)
+        for tree in self.trees:
+            guess = guess + self.learning_rate * tree.predict(buckets)
+        return guess
+
+
+# ---------------------------------------------------------------------- try it
+if __name__ == "__main__":
+    rng = np.random.default_rng(4)
+    X = rng.uniform(0, 10, size=(6000, 2))
+    y = 2 * np.sin(X[:, 0]) + np.cos(X[:, 1]) + rng.normal(0, 0.3, size=6000)
+    X_train, y_train = X[:4000], y[:4000]
+    X_new, y_new = X[4000:], y[4000:]
+
+    print("setting                  | rows per tree | seconds | error on new data")
+    for name, settings in [
+        ("255 buckets, no GOSS", dict(max_buckets=255, use_goss=False)),
+        ("32 buckets, no GOSS", dict(max_buckets=32, use_goss=False)),
+        ("32 buckets, GOSS 20%+10%", dict(max_buckets=32, use_goss=True)),
+    ]:
+        start = time.perf_counter()
+        model = LightGBMLite(n_trees=60, learning_rate=0.2, num_leaves=12, **settings).fit(X_train, y_train)
+        seconds = time.perf_counter() - start
+        error = np.mean((model.predict(X_new) - y_new) ** 2)
+        print(f"{name:24} | {model.rows_used[-1]:13d} | {seconds:7.2f} | {error:17.3f}")
+
+    # What to notice:
+    #  - 32 buckets instead of 255: much less work, the error gets only a little worse.
+    #  - GOSS: each tree looks at 1,200 rows instead of 4,000, again for a small cost.
+    #  You trade a bit of accuracy for a lot of speed. On millions of rows, that trade wins.
+    #  (The noise we added is 0.3 squared = 0.09, so that is the best possible error.)
+</code></pre>
+<!-- /CODE -->
+      </div>
+
+      <div class="tab-panel">
+<pre class="code"><code class="language-python">import lightgbm as lgb
+
+model = lgb.LGBMClassifier(
+    n_estimators=2000,         # the most trees it may build
+    learning_rate=0.05,        # size of each step
+    num_leaves=31,             # leaf-wise: the MAIN size knob (more leaves = more complex)
+    max_depth=-1,              # -1 means no depth limit (num_leaves does the limiting)
+    min_child_samples=20,      # every leaf needs at least 20 rows: stops tiny lopsided leaves
+    max_bin=255,               # buckets per feature
+    subsample=0.8,             # rows: use a random 80% ...
+    subsample_freq=1,          # ... re-drawn for every tree
+    colsample_bytree=0.8,      # columns: a random 80% per tree
+    # data_sample_strategy="goss",   # switch on GOSS (LightGBM 4+)
+)
+model.fit(
+    X_train, y_train,
+    eval_set=[(X_valid, y_valid)],
+    callbacks=[lgb.early_stopping(50)],   # stop when validation stops improving
+)
+
+# Categories: mark them as pandas "category" dtype, and LightGBM handles them natively.</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Remember + quiz -->
+  <section class="sec wrap">
+    <div class="remember">
+      <h3>Remember it</h3>
+      <ol>
+        <li>Buckets: try ~255 cuts per feature, not every value. Built once.</li>
+        <li>Leaf-wise: always split the most useful leaf. Guard with num_leaves.</li>
+        <li>GOSS keeps hard dots and samples easy ones; EFB packs never-together columns.</li>
+      </ol>
+    </div>
+    <div class="quiz-list">
+      <div class="quiz" data-answer="1">
+        <div class="q">A feature has 1,000,000 different values and max_bin = 255. About how many cuts does LightGBM check for it?</div>
+        <div class="opts"><button class="opt" type="button">999,999</button><button class="opt" type="button">at most 254</button><button class="opt" type="button">just 1</button></div>
+        <p class="why">255 buckets have 254 edges between them. That is all it needs to check.</p>
+      </div>
+      <div class="quiz" data-answer="0">
+        <div class="q">"Leaf-wise growth" means…</div>
+        <div class="opts"><button class="opt" type="button">always split the one leaf with the biggest gain, wherever it is</button><button class="opt" type="button">split every leaf on the same level at once</button><button class="opt" type="button">only grow trees with one leaf</button></div>
+        <p class="why">It spends every split where it helps most, so it lowers the error faster for the same number of leaves.</p>
+      </div>
+      <div class="quiz" data-answer="2">
+        <div class="q">In GOSS, why do the sampled easy dots get extra weight?</div>
+        <div class="opts"><button class="opt" type="button">Easy dots are more important</button><button class="opt" type="button">To make the tree deeper</button><button class="opt" type="button">So they stand in for all the easy dots that were skipped</button></div>
+        <p class="why">A few sampled dots, each counting extra, keep the totals close to the real ones.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav id="pager"></nav>
+<footer id="site-foot"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="../assets/js/viz.js"></script>
+<script src="../assets/js/ml.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/pages/lightgbm.js"></script>
+</body>
+</html>

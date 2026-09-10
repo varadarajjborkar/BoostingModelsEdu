@@ -90,7 +90,8 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
 
 - `V` (viz.js): `svg(host,W,H,label)`, `frame({W,H,m,x,y})` gives `{sx,sy,left,right,top,bottom,iw,ih}`,
   `axes(parent,f,opts)`, `el`, `text`, `line(pts)`, `rng(seed)`, datasets `wave/moons/ring/blobs`,
-  `regions(parent,f,scoreFn)`, `tip(html,evt)`, `slider(id,cb,fmt)` (uses `<output for=id>`),
+  `regions(parent,f,scoreFn)`, `tree(svg,root,{W,H,boxW,boxH,font})` (node = `{lines, tone:'split'|'a'|'b', faded, children}`),
+  `tip(html,evt)`, `slider(id,cb,fmt)` (uses `<output for=id>`),
   `seg(id,cb)`, `player({host,step,reset,canStep,speed})` (buttons `data-act=step|play|reset`),
   `drag(svg,handle,cb,axis)`, `fmt`, `clamp`, `onVisible(el,fn)`.
 - `ML` (ml.js): `fitStump`, `AdaBoost`, `fitRegTree`, `predictTree`, `leaves`, `fitClassTree`,
@@ -148,8 +149,10 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
   gradient bowl with squared vs absolute loss)
 - [x] Phase 5: XGBoost (careful-hiker metaphor, slope vs slope+curve walkers, split scorecard,
   live pruning tree, missing-value default path, speed tiles; shared `drawTree` in xgboost.js)
-- [ ] Phase 6: LightGBM
-- [ ] Phase 7: CatBoost
+- [x] Phase 6: LightGBM (post-office metaphor, buckets viz, level vs leaf-wise race `#lw=N`,
+  GOSS bars, EFB table, lightgbm_lite.py)
+- [ ] Phase 7: CatBoost (written: waiting-line metaphor, leak simulation, queue stepper table,
+  symmetric tree toggles, catboost_lite.py; screenshot check, then commit)
 - [ ] Phase 8: Face-off / comparison
 - [ ] Phase 9: polish, screenshot check, README
 
