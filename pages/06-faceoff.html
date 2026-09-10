@@ -97,7 +97,7 @@
     </div>
     <div class="table-wrap">
       <table class="t">
-        <thead><tr><th></th><th><i class="sw-dot" style="background:var(--c1)"></i>XGBoost</th><th><i class="sw-dot" style="background:var(--c3)"></i>LightGBM</th><th><i class="sw-dot" style="background:var(--c2)"></i>CatBoost</th></tr></thead>
+        <thead><tr><th><span class="sr-only">Topic</span></th><th><i class="sw-dot" style="background:var(--c1)"></i>XGBoost</th><th><i class="sw-dot" style="background:var(--c3)"></i>LightGBM</th><th><i class="sw-dot" style="background:var(--c2)"></i>CatBoost</th></tr></thead>
         <tbody>
           <tr><td><b>Tree shape</b></td><td>level by level, limited by depth</td><td>leaf-wise: best leaf first</td><td>symmetric: one question per level</td></tr>
           <tr><td><b>Finding splits</b></td><td>exact, or buckets (<code>tree_method="hist"</code>)</td><td>buckets (histograms)</td><td>buckets + one shared question per level</td></tr>

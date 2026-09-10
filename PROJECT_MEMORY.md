@@ -155,10 +155,19 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
   GOSS bars, EFB table, lightgbm_lite.py)
 - [x] Phase 7: CatBoost (waiting-line metaphor, leak simulation, queue stepper table `#qu=N`,
   symmetric tree toggles, catboost_lite.py)
-- [ ] Phase 8: Face-off (written: personas, pick-your-booster helper, side-by-side + knob translator
-  tables, early stopping viz, one-screen cheat sheet; chapter icons moved to `assets/js/glyphs.js`
-  and used by home.js too; README.md written; screenshot check, then commit)
-- [ ] Phase 9: polish, screenshot check, README
+- [x] Phase 8: Face-off (personas, pick-your-booster helper, side-by-side + knob translator
+  tables, early stopping viz, one-screen cheat sheet; chapter icons in `assets/js/glyphs.js`
+  used by home.js too; README.md)
+- [x] Phase 9: polish (`type="button"` on seg buttons, `.sr-only` table headers, README,
+  400px phone check via iframe wrapper: all pages fit, wide tables scroll in their box;
+  console-error sweep: 0 errors on all 8 pages)
+
+## Status: v1 complete (2026-09-10)
+
+All 7 chapters + home are live-ready. Ideas for a v2 if the user asks:
+- Bigger chart text on phones (SVG labels shrink with the chart).
+- Replace remaining inline `style=` attributes with utility classes (editor warnings only).
+- Optional extra topics the user may want later: SHAP / feature importance, tuning with Optuna.
 
 ## How to verify
 
@@ -182,6 +191,9 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
 - Headless Chrome with a fresh `--user-data-dir` can hang after writing the PNG: run it in the
   background, wait for the file, then kill it (add `--no-first-run --disable-extensions`).
   Crop with Pillow (scratch venv), not `sips` (its crop offset is unreliable).
+  Chrome will not make a window narrower than ~500px, even headless. For a real phone-width
+  check, screenshot a scratch wrapper page holding `<iframe style="width:400px">` of the page.
+  Console errors: run Chrome with `--enable-logging=stderr --dump-dom` and grep the log.
 - Steppers support a hash deep link for screenshots/sharing, e.g.
   `01-adaboost.html#ada=25&data=noisy` pre-runs 25 rounds. Add the same to later steppers.
 - AdaBoost team shading uses `tanh(3 * score / sum|alpha|)` so the shape stays visible.

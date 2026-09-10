@@ -71,7 +71,7 @@
         <span class="viz-hint">lower mess score = better question</span>
       </div>
       <div class="controls">
-        <div class="seg" id="sp-feat"><button data-v="0" class="on">Ask about feature 1</button><button data-v="1">Ask about feature 2</button></div>
+        <div class="seg" id="sp-feat"><button type="button" data-v="0" class="on">Ask about feature 1</button><button type="button" data-v="1">Ask about feature 2</button></div>
         <div class="btn-row"><button class="btn" id="sp-scan" type="button">▶ Scan every cut</button><button class="btn primary" id="sp-best" type="button">Jump to best</button></div>
       </div>
       <div class="grid-2-1">
@@ -192,7 +192,7 @@
 
     <div class="table-wrap" style="margin-top:20px">
       <table class="t">
-        <thead><tr><th></th><th>Bagging</th><th>Boosting</th></tr></thead>
+        <thead><tr><th><span class="sr-only">Question</span></th><th>Bagging</th><th>Boosting</th></tr></thead>
         <tbody>
           <tr><td><b>Trees are built</b></td><td>all at the same time</td><td>one after another</td></tr>
           <tr><td><b>Each tree looks at</b></td><td>a random bag of the data</td><td>the mistakes so far</td></tr>

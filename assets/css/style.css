@@ -65,6 +65,7 @@ mark, .hl { background: linear-gradient(transparent 58%, rgba(201, 138, 0, .28) 
 .muted { color: var(--muted); }
 .mono { font-family: var(--mono); }
 .c1 { color: var(--c1); } .c2 { color: var(--c2); } .c3 { color: var(--c3); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* ---------- Top navigation ---------- */
 .site-nav {
