@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gradient Boosting · Boosting, Visually</title>
+<meta name="description" content="Gradient boosting explained with pictures: every new tree fixes what is left over.">
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-page="02-gradient-boosting" data-root="../">
+<header id="site-nav"></header>
+
+<main>
+  <section class="wrap hero">
+    <div class="kicker"><span class="dot"></span>Chapter 02 · Gradient Boosting</div>
+    <h1>Gradient Boosting: <em>fix</em> what is left</h1>
+    <p class="big-idea">Make a guess. Look at what is left over. Train a small tree to predict that leftover. Add a little of it. Repeat.</p>
+    <div class="meta-row"><span class="pill">≈ 15 min</span><span class="pill">3 things to play with</span><span class="pill">The engine inside XGBoost, LightGBM and CatBoost</span></div>
+  </section>
+
+  <!-- Metaphor -->
+  <section class="wrap" style="padding-bottom:40px">
+    <div class="metaphor">
+      <div class="art">
+        <svg viewBox="0 0 240 150" role="img" aria-label="A golf ball getting closer to the hole with smaller and smaller shots">
+          <rect x="0" y="118" width="240" height="32" rx="6" fill="var(--c3-wash)"/>
+          <line x1="0" y1="118" x2="240" y2="118" stroke="var(--c3)" stroke-width="1.5"/>
+          <ellipse cx="212" cy="119" rx="9" ry="3" fill="var(--ink)"/>
+          <line x1="212" y1="118" x2="212" y2="52" stroke="var(--ink-2)" stroke-width="2"/>
+          <path d="M212,52 L236,60 L212,68 Z" fill="var(--c2)"/>
+          <g fill="none" stroke="var(--c1)" stroke-width="2">
+            <path d="M18,116 Q70,20 122,116"/>
+            <path d="M122,116 Q148,64 172,116"/>
+            <path d="M172,116 Q186,90 198,116"/>
+            <path d="M198,116 Q204,106 209,116"/>
+          </g>
+          <g fill="var(--card)" stroke="var(--ink-2)" stroke-width="1.5">
+            <circle cx="18" cy="113" r="4"/><circle cx="122" cy="113" r="4"/><circle cx="172" cy="113" r="4"/><circle cx="198" cy="113" r="4"/>
+          </g>
+          <g font-family="Inter, sans-serif" font-size="10.5" fill="var(--muted)" text-anchor="middle">
+            <text x="70" y="58">shot 1</text><text x="147" y="82">2</text><text x="185" y="96">3</text><text x="204" y="104">4</text>
+          </g>
+          <text x="120" y="140" font-family="Inter, sans-serif" font-size="10.5" fill="var(--ink-2)" text-anchor="middle">each shot starts where the ball landed</text>
+        </svg>
+      </div>
+      <div>
+        <div class="label">Picture this</div>
+        <h3>Golf: shot by shot to the hole</h3>
+        <p>Your first shot lands near the hole, not in it. The next shot starts <b>from where the ball is now</b> and aims at what is left. Shots get smaller and smaller. Gentle shots take more tries, but you never fly past the hole.</p>
+        <div class="story-map">
+          <span class="s">The hole</span><span class="arrow">→</span><span class="m">the true value y</span>
+          <span class="s">Where the ball is now</span><span class="arrow">→</span><span class="m">the team's guess F(x)</span>
+          <span class="s">Distance left to the hole</span><span class="arrow">→</span><span class="m">leftover = y − F(x)</span>
+          <span class="s">One shot</span><span class="arrow">→</span><span class="m">one small tree</span>
+          <span class="s">How hard you hit</span><span class="arrow">→</span><span class="m">learning rate</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1. Main viz -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>Watch the leftovers shrink</h2>
+      <p class="lede">Top: the team's guess. Bottom: what is <mark>left over</mark>, and the tiny tree that learns it. Every Step adds one tree.</p>
+    </div>
+    <div class="viz" id="gb-viz">
+      <div class="viz-top">
+        <span class="viz-title">One Step = one new tree</span>
+        <span class="viz-hint">changing a slider starts over</span>
+      </div>
+      <div class="controls">
+        <div class="btn-row">
+          <button class="btn primary" data-act="step" type="button">Step →</button>
+          <button class="btn" data-act="play" type="button">▶ Play</button>
+          <button class="btn" data-act="reset" type="button">Reset</button>
+        </div>
+        <label class="ctrl">Learning rate <input type="range" id="gb-lr" min="5" max="100" step="5" value="30"><output for="gb-lr"></output></label>
+        <label class="ctrl">Tree depth <input type="range" id="gb-depth" min="1" max="4" step="1" value="2"><output for="gb-depth"></output></label>
+      </div>
+      <div class="grid-2-1">
+        <div>
+          <div class="panel-title">The team's guess</div>
+          <div class="plot-top"></div>
+          <div class="panel-title" style="margin-top:6px">What is left over, and the newest tiny tree</div>
+          <div class="plot-bottom"></div>
+        </div>
+        <div>
+          <div class="stats two" style="margin-top:0">
+            <div class="stat"><div class="k">Trees</div><div class="v" id="gb-t">0</div></div>
+            <div class="stat good"><div class="k">Error left</div><div class="v" id="gb-err">100%</div></div>
+          </div>
+          <div class="panel-title" style="margin-top:16px">Error after each tree</div>
+          <div id="gb-loss"></div>
+          <p class="say-live" id="gb-say"></p>
+          <div class="legend">
+            <span><i class="sw" style="background:var(--ink-2);opacity:.55"></i>data</span>
+            <span><i class="ln" style="background:var(--c1)"></i>team's guess</span>
+            <span><i class="ln" style="background:var(--rule-2)"></i>guess before this tree</span>
+            <span><i class="ln" style="background:var(--c2)"></i>newest tree (learns the leftover)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note"><span class="ic">⛳</span><span><b>Notice:</b> the bottom dots get flatter every step. When the leftovers look like random noise, there is nothing left to learn. Time to stop.</span></div>
+  </section>
+
+  <!-- 2. Learning rate race -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>Big shots or gentle shots?</h2>
+      <p class="lede">The learning rate shrinks every tree before it is added. Same data, three learning rates. Slide the number of trees.</p>
+    </div>
+    <div class="viz" id="lr-viz">
+      <div class="controls">
+        <label class="ctrl">Number of trees <input type="range" id="lr-n" min="1" max="150" step="1" value="10"><output for="lr-n"></output></label>
+      </div>
+      <div class="grid-3" id="lr-panels"></div>
+      <div class="panel-title" style="margin-top:18px">Error on new, unseen data</div>
+      <div id="lr-test"></div>
+      <div class="legend">
+        <span><i class="ln" style="background:var(--c1)"></i>learning rate 1.0</span>
+        <span><i class="ln" style="background:var(--c2)"></i>learning rate 0.3</span>
+        <span><i class="ln" style="background:var(--c3)"></i>learning rate 0.05</span>
+      </div>
+      <p class="say-live" id="lr-say"></p>
+    </div>
+  </section>
+
+  <!-- 3. Why gradient -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>So why is it called "gradient"?</h2>
+      <p class="lede">Remember the bowl from the warm-up? Here is the bowl for <mark>one dot</mark>. The leftover is simply the downhill direction.</p>
+    </div>
+    <div class="viz" id="grad-viz">
+      <div class="viz-top">
+        <span class="viz-title">Drag the black dot (the team's guess for this one dot)</span>
+        <span class="viz-hint">true value = 6</span>
+      </div>
+      <div class="controls">
+        <div class="seg" id="grad-loss"><button data-v="sq" class="on" type="button">Squared error</button><button data-v="abs" type="button">Absolute error</button></div>
+      </div>
+      <div class="grid-2-1">
+        <div class="plot"></div>
+        <div>
+          <div class="stats two" style="margin-top:0">
+            <div class="stat"><div class="k">Guess F</div><div class="v" id="gr-f">0</div></div>
+            <div class="stat"><div class="k">Slope (gradient)</div><div class="v" id="gr-g">0</div></div>
+          </div>
+          <div class="stats" style="margin-top:10px">
+            <div class="stat good" style="flex:1"><div class="k">Next tree is asked to predict (−slope)</div><div class="v" id="gr-r">0</div></div>
+          </div>
+          <p class="say-live" id="gr-say"></p>
+        </div>
+      </div>
+    </div>
+    <div class="note green"><span class="ic">🔑</span><span><b>This is the big idea.</b> "Leftover" really means "the downhill direction of the loss". Pick a different loss (a different bowl) and you get a different leftover. So the same recipe works for prices, for yes/no questions, for rankings… anything with a bowl.</span></div>
+  </section>
+
+  <!-- 4. Recipe -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>The recipe</h2>
+      <p class="lede">Four lines. XGBoost, LightGBM and CatBoost all start from this.</p>
+    </div>
+    <div class="flow" style="--n:4">
+      <div class="step"><b>First guess</b><span>The average (the bottom of the bowl for everyone together).</span></div>
+      <div class="step"><b>Find leftovers</b><span>For each dot: which way is downhill? For squared error, that is y − guess.</span></div>
+      <div class="step"><b>Fit a small tree</b><span>It learns the leftovers from the features.</span></div>
+      <div class="step"><b>Small step</b><span>guess += learning rate × tree. Repeat.</span></div>
+    </div>
+  </section>
+
+  <!-- Under the hood -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">Hood</span>
+      <h2>Under the hood</h2>
+      <p class="lede">Optional. Every formula comes with a "say it" line.</p>
+    </div>
+    <div class="hood" data-tabs>
+      <div class="tabs"><button class="tab" type="button">Math</button><button class="tab" type="button">Pseudo-code</button><button class="tab" type="button">Python (from scratch)</button><button class="tab" type="button">Using a library</button></div>
+
+      <div class="tab-panel">
+        <h4>1 · First guess</h4>
+        <div class="eq">$$F_0(x) = \arg\min_{c} \sum_{i=1}^{n} L(y_i, c) \qquad \text{(squared error} \Rightarrow F_0 = \bar{y}\text{)}$$</div>
+        <p class="say"><b>Say it:</b> start with the one number that is best for everyone. For squared error, that is the average.</p>
+        <h4>2 · Leftovers (called pseudo-residuals)</h4>
+        <div class="eq">$$r_{i} = -\left[\frac{\partial L\big(y_i, F(x_i)\big)}{\partial F(x_i)}\right]_{F = F_{m-1}}$$</div>
+        <p class="say"><b>Say it:</b> for every dot, how should its guess move to go downhill on the loss? That direction is the leftover.</p>
+        <h4>3 · Fit a tree, take a small step</h4>
+        <div class="eq">$$h_m \approx \text{tree fitted to } \{(x_i,\ r_{i})\} \qquad F_m(x) = F_{m-1}(x) + \nu\, h_m(x)$$</div>
+        <p class="say"><b>Say it:</b> the new tree learns the leftovers. We add only $\nu$ (the learning rate, like 0.1) of it.</p>
+        <h4>4 · Different bowls, different leftovers</h4>
+        <div class="table-wrap">
+          <table class="t">
+            <thead><tr><th>Loss (the bowl)</th><th>Used for</th><th>Leftover the next tree learns</th></tr></thead>
+            <tbody>
+              <tr><td>Squared: $\tfrac12 (y - F)^2$</td><td>numbers</td><td>$y - F$ (the plain gap)</td></tr>
+              <tr><td>Absolute: $|y - F|$</td><td>numbers with outliers</td><td>$\operatorname{sign}(y - F)$ (only the direction)</td></tr>
+              <tr><td>Log-loss, with $p = \sigma(F)$</td><td>yes / no</td><td>$y - p$ (truth minus predicted chance)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-panel">
+<pre class="pseudo"><b>to train Gradient Boosting</b>:
+
+  <i>Step 0. A first guess</i>
+     guess = the average of all y            <i>(the same guess for every dot)</i>
+
+  <b>repeat</b> for each tree:
+     <i>Step 1. What is left?</i>
+        leftover = y - guess                   <i>(for every dot)</i>
+     <i>Step 2. Learn the leftover</i>
+        fit a <u>small tree</u> that predicts the leftover from x
+     <i>Step 3. Take a small step</i>
+        guess = guess + learning_rate × tree(x)
+
+<b>to predict</b> a new dot:
+  start from the average, then add learning_rate × every tree's answer</pre>
+      </div>
+
+      <div class="tab-panel">
+        <p class="muted" style="font-size:14.5px">Runnable with just numpy. File: <code>code/gradient_boosting.py</code></p>
+        <!-- CODE:gradient_boosting.py -->
+<pre class="code"><code class="language-python">"""
+Gradient Boosting (for predicting numbers), built from scratch.
+
+The idea (same as on the page):
+    1. Start with a simple guess for everyone: the average.
+    2. Look at what is LEFT OVER:   leftover = true value - guess.
+    3. Train a small tree to predict those leftovers.
+    4. Add a little bit of that tree to the guess (the learning rate).
+    5. Repeat. Every tree fixes part of what is still wrong.
+
+Needs only numpy.   Run it with:   python gradient_boosting.py
+"""
+import numpy as np
+
+
+class SmallRegressionTree:
+    """A small tree that predicts NUMBERS. Each leaf answers the average of its dots."""
+
+    def __init__(self, max_depth=2):
+        self.max_depth = max_depth
+
+    def fit(self, X, y):
+        self.root = self.grow(np.asarray(X, dtype=float), np.asarray(y, dtype=float), depth=0)
+        return self
+
+    def grow(self, X, y, depth):
+        leaf = {"answer": np.mean(y)}
+        if depth == self.max_depth or len(y) &lt; 2:
+            return leaf
+
+        # Try every cut. Keep the one with the smallest squared error after the split.
+        best_cut = None
+        best_error = np.sum((y - y.mean()) ** 2)            # error if we do not split at all
+        for feature in range(X.shape[1]):
+            values = np.unique(X[:, feature])
+            for threshold in (values[:-1] + values[1:]) / 2:
+                left = X[:, feature] &lt;= threshold
+                error = np.sum((y[left] - y[left].mean()) ** 2) + \
+                        np.sum((y[~left] - y[~left].mean()) ** 2)
+                if error &lt; best_error:
+                    best_error = error
+                    best_cut = (feature, threshold)
+
+        if best_cut is None:
+            return leaf
+
+        feature, threshold = best_cut
+        left = X[:, feature] &lt;= threshold
+        return {
+            "feature": feature,
+            "threshold": threshold,
+            "left": self.grow(X[left], y[left], depth + 1),
+            "right": self.grow(X[~left], y[~left], depth + 1),
+        }
+
+    def predict_one(self, x):
+        node = self.root
+        while "answer" not in node:
+            node = node["left"] if x[node["feature"]] &lt;= node["threshold"] else node["right"]
+        return node["answer"]
+
+    def predict(self, X):
+        return np.array([self.predict_one(x) for x in np.asarray(X, dtype=float)])
+
+
+class GradientBoosting:
+    def __init__(self, n_trees=100, learning_rate=0.1, max_depth=2):
+        self.n_trees = n_trees
+        self.learning_rate = learning_rate      # how strong each "shot" is
+        self.max_depth = max_depth              # how big each tree is
+
+    def fit(self, X, y):
+        X = np.asarray(X, dtype=float)
+        y = np.asarray(y, dtype=float)
+
+        # Step 0: the first guess is just the average, the same for everyone
+        self.first_guess = np.mean(y)
+        guess = np.full(len(y), self.first_guess)
+        self.trees = []
+
+        for _ in range(self.n_trees):
+            # Step 1: what is left over?
+            leftover = y - guess
+
+            # Step 2: train a small tree to predict the leftover
+            tree = SmallRegressionTree(self.max_depth).fit(X, leftover)
+
+            # Step 3: take a small step toward the truth
+            guess = guess + self.learning_rate * tree.predict(X)
+            self.trees.append(tree)
+
+        return self
+
+    def predict(self, X, n_trees=None):
+        """Start from the average, then add a little of every tree (or only the first n_trees)."""
+        guess = np.full(len(X), self.first_guess)
+        for tree in self.trees[:n_trees]:
+            guess = guess + self.learning_rate * tree.predict(X)
+        return guess
+
+
+# ---------------------------------------------------------------------- try it
+if __name__ == "__main__":
+    # A wavy line with some noise on top.
+    rng = np.random.default_rng(2)
+    x = rng.uniform(0, 10, size=300)
+    y = 2 * np.sin(x) + 0.3 * x + rng.normal(0, 0.4, size=300)
+    X = x.reshape(-1, 1)
+    X_train, y_train = X[:200], y[:200]
+    X_new, y_new = X[200:], y[200:]
+
+    model = GradientBoosting(n_trees=200, learning_rate=0.1, max_depth=2).fit(X_train, y_train)
+
+    def error(guess, truth):
+        return np.mean((guess - truth) ** 2)
+
+    print("trees | error on training data | error on new data")
+    for k in [0, 1, 5, 20, 50, 100, 200]:
+        print(f"{k:5d} | {error(model.predict(X_train, k), y_train):22.3f} | {error(model.predict(X_new, k), y_new):17.3f}")
+
+    # What to notice:
+    #  - Training error keeps going down, forever.
+    #  - Error on NEW data is lowest somewhere in the middle (near 0.16, the noise we added:
+    #    0.4 squared). Nobody can predict pure noise.
+    #  - After that, new-data error creeps back up: extra trees start learning the noise.
+    #    That is why people stop early, at the point where new-data error is lowest.
+</code></pre>
+<!-- /CODE -->
+      </div>
+
+      <div class="tab-panel">
+<pre class="code"><code class="language-python">from sklearn.ensemble import GradientBoostingRegressor
+
+model = GradientBoostingRegressor(
+    n_estimators=300,     # how many small trees (shots)
+    learning_rate=0.05,   # how hard each shot is: smaller = safer, but needs more trees
+    max_depth=3,          # how big each tree is
+    subsample=0.8,        # each tree sees a random 80% of the rows: less overfitting
+)
+model.fit(X_train, y_train)
+print("error on new data:", ((model.predict(X_test) - y_test) ** 2).mean())
+
+# Tip: for big datasets use HistGradientBoostingRegressor.
+# Same idea, but it puts numbers into buckets first (the LightGBM trick, chapter 04).</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Remember + quiz -->
+  <section class="sec wrap">
+    <div class="remember">
+      <h3>Remember it</h3>
+      <ol>
+        <li>Each new tree predicts the leftover error of the team so far.</li>
+        <li>Leftover = downhill direction of the loss. New loss, new leftover.</li>
+        <li>Small learning rate + more trees = usually better, but watch new-data error.</li>
+      </ol>
+    </div>
+    <div class="quiz-list">
+      <div class="quiz" data-answer="1">
+        <div class="q">The team guesses 7. The true value is 10. With squared error, what does the next tree try to predict for this dot?</div>
+        <div class="opts"><button class="opt" type="button">10</button><button class="opt" type="button">3</button><button class="opt" type="button">−3</button></div>
+        <p class="why">Leftover = true − guess = 10 − 7 = 3. The tree learns the gap, not the answer.</p>
+      </div>
+      <div class="quiz" data-answer="0">
+        <div class="q">A learning rate of 0.1 means…</div>
+        <div class="opts"><button class="opt" type="button">each tree's answer is shrunk to 10% before it is added</button><button class="opt" type="button">only 10% of the data is used</button><button class="opt" type="button">each tree has 10% of the depth</button></div>
+        <p class="why">It is the strength of each shot. Gentle shots need more trees but overshoot less.</p>
+      </div>
+      <div class="quiz" data-answer="0">
+        <div class="q">Why is it called <i>gradient</i> boosting?</div>
+        <div class="opts"><button class="opt" type="button">The leftovers are the downhill direction (negative gradient) of the loss</button><button class="opt" type="button">The trees are sorted from small to big</button><button class="opt" type="button">The data must be sorted first</button></div>
+        <p class="why">Every tree takes one step downhill on the loss bowl. That is gradient descent, done with trees.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav id="pager"></nav>
+<footer id="site-foot"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="../assets/js/viz.js"></script>
+<script src="../assets/js/ml.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/pages/gradient-boosting.js"></script>
+</body>
+</html>

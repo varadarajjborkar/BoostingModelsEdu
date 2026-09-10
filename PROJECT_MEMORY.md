@@ -144,7 +144,8 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
 - [x] Phase 1: design system, shared JS, home page
 - [x] Phase 2: Warm-up page + Vercel config (vercel.json, .vercelignore, 404.html)
 - [x] Phase 3: AdaBoost (flashcard metaphor, stepper with weights as dot size, alpha explorer)
-- [ ] Phase 4: Gradient Boosting
+- [x] Phase 4: Gradient Boosting (golf metaphor, leftover stepper `#gb=N`, learning-rate race,
+  gradient bowl with squared vs absolute loss)
 - [ ] Phase 5: XGBoost
 - [ ] Phase 6: LightGBM
 - [ ] Phase 7: CatBoost
