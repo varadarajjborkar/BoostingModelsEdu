@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AdaBoost · Boosting, Visually</title>
+<meta name="description" content="AdaBoost explained with pictures: missed points get heavier, good helpers get a louder vote.">
+<link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-page="01-adaboost" data-root="../">
+<header id="site-nav"></header>
+
+<main>
+  <section class="wrap hero">
+    <div class="kicker"><span class="dot"></span>Chapter 01 · AdaBoost</div>
+    <h1>AdaBoost: <em>mistakes</em> get louder</h1>
+    <p class="big-idea">Train a tiny helper. Make the dots it got wrong heavier. The next helper has to care about them. At the end, everyone votes, and good helpers vote louder.</p>
+    <div class="meta-row"><span class="pill">≈ 15 min</span><span class="pill">3 things to play with</span><span class="pill">The first famous booster (1995)</span></div>
+  </section>
+
+  <!-- Metaphor -->
+  <section class="wrap" style="padding-bottom:40px">
+    <div class="metaphor">
+      <div class="art">
+        <svg viewBox="0 0 240 180" role="img" aria-label="Flashcards: the ones you missed come back bigger">
+          <text x="4" y="14" font-size="10.5" fill="var(--muted)" font-family="JetBrains Mono, monospace">ROUND 1</text>
+          <g font-family="Inter, sans-serif" text-anchor="middle">
+            <rect x="10" y="22" width="30" height="38" rx="5" fill="var(--card)" stroke="var(--ink-2)"/>
+            <rect x="55" y="22" width="30" height="38" rx="5" fill="var(--card)" stroke="var(--ink-2)"/>
+            <rect x="100" y="22" width="30" height="38" rx="5" fill="var(--card)" stroke="var(--ink-2)"/>
+            <rect x="145" y="22" width="30" height="38" rx="5" fill="var(--card)" stroke="var(--ink-2)"/>
+            <rect x="190" y="22" width="30" height="38" rx="5" fill="var(--card)" stroke="var(--ink-2)"/>
+            <text x="25" y="47" font-size="14" fill="var(--good)">✓</text>
+            <text x="70" y="47" font-size="14" fill="var(--bad)">✗</text>
+            <text x="115" y="47" font-size="14" fill="var(--good)">✓</text>
+            <text x="160" y="47" font-size="14" fill="var(--bad)">✗</text>
+            <text x="205" y="47" font-size="14" fill="var(--good)">✓</text>
+          </g>
+          <path d="M120,70 L120,92" stroke="var(--muted)" stroke-width="1.5"/><path d="M115,86 L120,94 L125,86" fill="none" stroke="var(--muted)" stroke-width="1.5"/>
+          <text x="4" y="104" font-size="10.5" fill="var(--muted)" font-family="JetBrains Mono, monospace">ROUND 2</text>
+          <rect x="13" y="140" width="24" height="30" rx="4" fill="var(--card)" stroke="var(--rule-2)"/>
+          <rect x="42" y="112" width="56" height="58" rx="6" fill="var(--c2-wash)" stroke="var(--c2)" stroke-width="1.5"/>
+          <rect x="103" y="140" width="24" height="30" rx="4" fill="var(--card)" stroke="var(--rule-2)"/>
+          <rect x="132" y="112" width="56" height="58" rx="6" fill="var(--c2-wash)" stroke="var(--c2)" stroke-width="1.5"/>
+          <rect x="193" y="140" width="24" height="30" rx="4" fill="var(--card)" stroke="var(--rule-2)"/>
+          <text x="70" y="146" font-size="11" text-anchor="middle" fill="var(--ink)" font-family="Inter, sans-serif">heavier</text>
+          <text x="160" y="146" font-size="11" text-anchor="middle" fill="var(--ink)" font-family="Inter, sans-serif">heavier</text>
+        </svg>
+      </div>
+      <div>
+        <div class="label">Picture this</div>
+        <h3>The flashcard pile</h3>
+        <p>You practise with flashcards. The cards you get wrong come back <b>bigger</b>, so you cannot ignore them. Many friends help, one after another. Friends who were right more often get a louder say in the final answer.</p>
+        <div class="story-map">
+          <span class="s">A flashcard</span><span class="arrow">→</span><span class="m">a data point (dot)</span>
+          <span class="s">A friend helping</span><span class="arrow">→</span><span class="m">a stump (1-question tree)</span>
+          <span class="s">Card comes back bigger</span><span class="arrow">→</span><span class="m">its weight goes up</span>
+          <span class="s">How loud a friend is</span><span class="arrow">→</span><span class="m">vote power α (alpha)</span>
+          <span class="s">The final answer</span><span class="arrow">→</span><span class="m">weighted vote of all stumps</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1. Main viz -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>Watch AdaBoost learn</h2>
+      <p class="lede">Each Step trains one helper (a straight cut). Watch the missed dots <mark>grow</mark> and the team's shading bend into shape.</p>
+    </div>
+    <div class="viz" id="ada-viz">
+      <div class="viz-top">
+        <span class="viz-title">Dot size = weight. Circled dots = missed by the newest helper.</span>
+        <span class="viz-hint">one Step = one round</span>
+      </div>
+      <div class="controls">
+        <div class="btn-row">
+          <button class="btn primary" data-act="step" type="button">Step →</button>
+          <button class="btn" data-act="play" type="button">▶ Play</button>
+          <button class="btn" data-act="reset" type="button">Reset</button>
+        </div>
+        <div class="seg" id="ada-data"><button data-v="ring" class="on">Circle</button><button data-v="moons">Moons</button><button data-v="noisy">Circle + wrong labels</button></div>
+        <div class="seg" id="ada-view"><button data-v="team" class="on">Team's answer</button><button data-v="helper">Newest helper only</button></div>
+      </div>
+      <div class="grid-2-1">
+        <div class="plot"></div>
+        <div>
+          <div class="stats two" style="margin-top:0">
+            <div class="stat"><div class="k">Round</div><div class="v" id="ada-t">0</div></div>
+            <div class="stat"><div class="k">Helper's error ε</div><div class="v" id="ada-err">·</div></div>
+            <div class="stat"><div class="k">Vote power α</div><div class="v" id="ada-alpha">·</div></div>
+            <div class="stat good"><div class="k">Team accuracy</div><div class="v" id="ada-acc">·</div></div>
+          </div>
+          <div class="panel-title" style="margin-top:16px">Team accuracy after each round</div>
+          <div id="ada-acc-chart"></div>
+          <div class="panel-title" style="margin-top:10px">Vote power of each helper</div>
+          <div id="ada-alpha-chart"></div>
+        </div>
+      </div>
+      <p class="say-live" id="ada-say"></p>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--pos)"></i>class A (+1)</span>
+        <span><i class="sw" style="background:var(--neg)"></i>class B (−1)</span>
+        <span><i class="sw" style="background:none;outline:1.5px solid var(--ink)"></i>missed by newest helper</span>
+      </div>
+    </div>
+    <div class="note"><span class="ic">🔎</span><span><b>Fun fact:</b> after each round, the dots the last helper missed hold <b>exactly half</b> of all the weight. So the next helper can never just copy the last one. It is forced to look somewhere new.</span></div>
+    <div class="note blue"><span class="ic">⚠️</span><span>Try <b>"Circle + wrong labels"</b> and press Play. The wrongly labelled dots (marked <b>!</b>) keep getting heavier, far more than their fair share. AdaBoost keeps trying to fix mistakes that cannot be fixed. That is its big weakness: <b>it is sensitive to noise</b>.</span></div>
+  </section>
+
+  <!-- 2. Alpha -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>How loud is each helper?</h2>
+      <p class="lede">A helper's vote power depends only on its weighted error ε. Slide ε and watch the voice change.</p>
+    </div>
+    <div class="viz" id="alpha-viz">
+      <div class="controls">
+        <label class="ctrl">Helper's error ε <input type="range" id="al-err" min="1" max="99" step="1" value="20"><output for="al-err"></output></label>
+      </div>
+      <div class="grid-2-1">
+        <div class="plot"></div>
+        <div>
+          <div class="stats" style="margin-top:0">
+            <div class="stat"><div class="k">Error ε</div><div class="v" id="al-e">0.20</div></div>
+            <div class="stat"><div class="k">Vote power α</div><div class="v" id="al-a">0</div></div>
+          </div>
+          <div class="panel-title" style="margin-top:16px">What happens to the weights next</div>
+          <div id="al-bars"></div>
+          <p class="say-live" id="al-say"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. One round -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>One round, four moves</h2>
+      <p class="lede">That is the whole algorithm. Repeat it as many times as you like.</p>
+    </div>
+    <div class="flow" style="--n:4">
+      <div class="step"><b>Train a helper</b><span>Find the one cut with the smallest mistakes, where heavy dots count more.</span></div>
+      <div class="step"><b>Measure its error ε</b><span>Add up the weight of the dots it got wrong.</span></div>
+      <div class="step"><b>Give it a voice α</b><span>Small error → loud voice. Coin flip → no voice.</span></div>
+      <div class="step"><b>Reweight</b><span>Missed dots grow, correct dots shrink. Rescale to a total of 1.</span></div>
+    </div>
+  </section>
+
+  <!-- Under the hood -->
+  <section class="sec wrap">
+    <div class="sec-head">
+      <span class="sec-num">Hood</span>
+      <h2>Under the hood</h2>
+      <p class="lede">Optional. Every formula comes with a "say it" line in plain words.</p>
+    </div>
+    <div class="hood" data-tabs>
+      <div class="tabs"><button class="tab" type="button">Math</button><button class="tab" type="button">Pseudo-code</button><button class="tab" type="button">Python (from scratch)</button><button class="tab" type="button">Using a library</button></div>
+
+      <div class="tab-panel">
+        <p class="muted" style="font-size:14.5px">Labels are $+1$ or $-1$. A helper $h_t(x)$ also answers $+1$ or $-1$.</p>
+        <h4>1 · Start equal</h4>
+        <div class="eq">$$w_i = \frac{1}{n} \quad \text{for every dot } i$$</div>
+        <h4>2 · Weighted error of helper $t$</h4>
+        <div class="eq">$$\varepsilon_t = \sum_{i \,:\, h_t(x_i) \neq y_i} w_i$$</div>
+        <p class="say"><b>Say it:</b> add up the weights of the dots this helper got wrong.</p>
+        <h4>3 · Vote power</h4>
+        <div class="eq">$$\alpha_t = \frac{1}{2}\ln\!\left(\frac{1-\varepsilon_t}{\varepsilon_t}\right)$$</div>
+        <p class="say"><b>Say it:</b> the fewer mistakes, the louder the voice. At $\varepsilon = 0.5$ (coin flip) the voice is exactly zero.</p>
+        <h4>4 · Reweight</h4>
+        <div class="eq">$$w_i \leftarrow \frac{w_i \, e^{-\alpha_t\, y_i\, h_t(x_i)}}{Z_t}$$</div>
+        <p class="say"><b>Say it:</b> $y_i h_t(x_i)$ is $+1$ when the helper was right, so the weight shrinks. It is $-1$ when it was wrong, so the weight grows. $Z_t$ just rescales everything to add up to 1.</p>
+        <h4>5 · The team's answer</h4>
+        <div class="eq">$$H(x) = \operatorname{sign}\!\Big(\sum_{t=1}^{T} \alpha_t\, h_t(x)\Big)$$</div>
+        <p class="say"><b>Say it:</b> everyone votes, louder helpers count more, and the sign of the total wins.</p>
+        <div class="note green" style="margin-top:4px"><span class="ic">🔗</span><span><b>Secret link to the next chapter:</b> AdaBoost is secretly sliding down a loss bowl, the "exponential loss" $\sum_i e^{-y_i F(x_i)}$. Gradient Boosting takes that idea and makes it work for <b>any</b> bowl.</span></div>
+      </div>
+
+      <div class="tab-panel">
+<pre class="pseudo"><b>to train AdaBoost</b> on dots with labels +1 / -1:
+
+  give every dot the same weight (1/n)
+
+  <b>repeat</b> for each round:
+     <i>Step 1. Train a helper</i>
+        find the stump with the fewest mistakes, <u>counting heavy dots more</u>
+     <i>Step 2. How bad was it?</i>
+        error = total weight of the dots it got wrong
+     <i>Step 3. Give it a voice</i>
+        vote_power = ½ × log((1 - error) / error)
+     <i>Step 4. Make mistakes louder</i>
+        missed dots:  weight × e^(vote_power)     <i>(grow)</i>
+        correct dots: weight × e^(-vote_power)    <i>(shrink)</i>
+        rescale so all weights add up to 1
+
+<b>to predict</b> a new dot:
+  every helper votes +1 or -1, times its vote_power
+  add the votes up. <u>The sign of the total is the answer.</u></pre>
+      </div>
+
+      <div class="tab-panel">
+        <p class="muted" style="font-size:14.5px">Runnable with just numpy. File: <code>code/adaboost.py</code></p>
+        <!-- CODE:adaboost.py -->
+<pre class="code"><code class="language-python">"""
+AdaBoost, built from scratch.
+
+The idea (same as on the page):
+    1. Every dot starts with the same weight.
+    2. Train a tiny helper: a stump (a tree with just ONE yes/no question).
+    3. The dots that helper got wrong become HEAVIER,
+       so the next helper is forced to care about them.
+    4. Each helper gets a vote power. Better helpers get a louder voice.
+    5. To predict, all helpers vote. Louder voices count more.
+
+Labels must be +1 or -1.   Needs only numpy.   Run it with:   python adaboost.py
+"""
+import numpy as np
+
+
+class Stump:
+    """A tiny tree with ONE question:  'is x[feature] &gt; threshold ?'"""
+
+    def __init__(self):
+        self.feature = None
+        self.threshold = None
+        self.says_if_yes = 1             # the label it answers when the question is true (+1 or -1)
+
+    def predict(self, X):
+        yes = X[:, self.feature] &gt; self.threshold
+        return np.where(yes, self.says_if_yes, -self.says_if_yes)
+
+    def fit(self, X, y, weights):
+        """Find the question with the smallest WEIGHTED error (heavy dots count more)."""
+        best_error = np.inf
+
+        for feature in range(X.shape[1]):
+            values = np.unique(X[:, feature])
+            for threshold in (values[:-1] + values[1:]) / 2:
+                for says_if_yes in (1, -1):
+                    yes = X[:, feature] &gt; threshold
+                    guess = np.where(yes, says_if_yes, -says_if_yes)
+                    error = np.sum(weights[guess != y])      # add up the weight of the missed dots
+
+                    if error &lt; best_error:
+                        best_error = error
+                        self.feature = feature
+                        self.threshold = threshold
+                        self.says_if_yes = says_if_yes
+
+        return best_error
+
+
+class AdaBoost:
+    def __init__(self, n_rounds=50):
+        self.n_rounds = n_rounds
+        self.helpers = []                # the stumps, in the order they were trained
+        self.vote_powers = []            # how loud each helper is
+
+    def fit(self, X, y):
+        X = np.asarray(X, dtype=float)
+        y = np.asarray(y)
+        n = len(y)
+        weights = np.full(n, 1 / n)      # everyone starts equal
+
+        for round_number in range(self.n_rounds):
+            # Step 1: train a helper on the weighted dots
+            helper = Stump()
+            error = helper.fit(X, y, weights)
+            error = np.clip(error, 1e-10, 1 - 1e-10)      # stay away from 0 and 1 (no dividing by zero)
+
+            # Step 2: turn its error into a vote power
+            #   error small  -&gt; big positive vote power
+            #   error = 0.5  -&gt; vote power 0 (a coin flip gets no voice)
+            vote_power = 0.5 * np.log((1 - error) / error)
+
+            # Step 3: make its mistakes heavier and its hits lighter
+            missed = helper.predict(X) != y
+            weights[missed] *= np.exp(vote_power)          # grow
+            weights[~missed] *= np.exp(-vote_power)        # shrink
+            weights /= weights.sum()                       # rescale so all weights add up to 1
+
+            self.helpers.append(helper)
+            self.vote_powers.append(vote_power)
+
+        return self
+
+    def team_score(self, X):
+        """Every helper votes +1 or -1, times its vote power. We add it all up."""
+        X = np.asarray(X, dtype=float)
+        score = np.zeros(len(X))
+        for helper, vote_power in zip(self.helpers, self.vote_powers):
+            score += vote_power * helper.predict(X)
+        return score
+
+    def predict(self, X):
+        return np.where(self.team_score(X) &gt;= 0, 1, -1)   # the sign of the total is the answer
+
+
+# ---------------------------------------------------------------------- try it
+if __name__ == "__main__":
+    # A toy dataset: class +1 inside a circle, class -1 outside.
+    rng = np.random.default_rng(1)
+    X = rng.uniform(0, 1, size=(500, 2))
+    y = np.where((X[:, 0] - 0.5) ** 2 + (X[:, 1] - 0.5) ** 2 &lt; 0.08, 1, -1)
+
+    X_train, y_train = X[:350], y[:350]
+    X_new, y_new = X[350:], y[350:]
+
+    print("helpers | training data | new data")
+    for n_rounds in [1, 5, 20, 60]:
+        model = AdaBoost(n_rounds=n_rounds).fit(X_train, y_train)
+        train_acc = np.mean(model.predict(X_train) == y_train)
+        new_acc = np.mean(model.predict(X_new) == y_new)
+        print(f"{n_rounds:7d} | {train_acc:13.0%} | {new_acc:8.0%}")
+
+    # One stump alone can only draw one straight line, so it is weak.
+    # A team of stumps, each fixing the last one's misses, draws the circle.
+</code></pre>
+<!-- /CODE -->
+      </div>
+
+      <div class="tab-panel">
+<pre class="code"><code class="language-python">from sklearn.ensemble import AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
+
+model = AdaBoostClassifier(
+    estimator=DecisionTreeClassifier(max_depth=1),  # every helper is a stump
+    n_estimators=200,                               # how many helpers (rounds)
+    learning_rate=0.5,                              # shrink each vote power a bit: calmer, safer
+)
+model.fit(X_train, y_train)
+print("accuracy on new data:", model.score(X_test, y_test))</code></pre>
+        <p class="muted" style="font-size:14.5px;margin-top:12px">Tip: if your labels are noisy, lower <code>learning_rate</code> and keep <code>n_estimators</code> moderate.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Remember + quiz -->
+  <section class="sec wrap">
+    <div class="remember">
+      <h3>Remember it</h3>
+      <ol>
+        <li>Every round, missed dots get heavier. The next helper must focus on them.</li>
+        <li>Vote power α = ½ ln((1 − ε)/ε). Accurate helpers shout, coin flips stay silent.</li>
+        <li>Final answer = weighted vote. Weak spot: wrong labels get huge.</li>
+      </ol>
+    </div>
+    <div class="quiz-list">
+      <div class="quiz" data-answer="1">
+        <div class="q">A helper's weighted error is exactly 0.5. Its vote power is…</div>
+        <div class="opts"><button class="opt" type="button">Very large</button><button class="opt" type="button">Zero</button><button class="opt" type="button">Negative</button></div>
+        <p class="why">ln(0.5 / 0.5) = ln(1) = 0. A coin flip adds no information, so it gets no voice.</p>
+      </div>
+      <div class="quiz" data-answer="1">
+        <div class="q">After a round, what happens to the dots the helper got wrong?</div>
+        <div class="opts"><button class="opt" type="button">They are removed from the data</button><button class="opt" type="button">They get heavier</button><button class="opt" type="button">They get lighter</button></div>
+        <p class="why">They are multiplied by e<sup>α</sup>, so the next helper cares about them more.</p>
+      </div>
+      <div class="quiz" data-answer="0">
+        <div class="q">Why can AdaBoost struggle when some labels are wrong?</div>
+        <div class="opts"><button class="opt" type="button">Those dots keep getting heavier, and helpers waste effort on them</button><button class="opt" type="button">AdaBoost ignores them</button><button class="opt" type="button">Stumps cannot see those dots</button></div>
+        <p class="why">A wrong label can never be "fixed", so its weight keeps growing round after round.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav id="pager"></nav>
+<footer id="site-foot"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="../assets/js/viz.js"></script>
+<script src="../assets/js/ml.js"></script>
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/pages/adaboost.js"></script>
+</body>
+</html>

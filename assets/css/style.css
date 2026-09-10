@@ -150,6 +150,7 @@ mark, .hl { background: linear-gradient(transparent 58%, rgba(201, 138, 0, .28) 
 .stat .k { font-size: 12px; color: var(--muted); }
 .stat .v { font: 600 18px var(--sans); color: var(--ink); }
 .stat.good .v { color: var(--good); }
+.stats.two { display: grid; grid-template-columns: 1fr 1fr; }
 .stat.bad .v { color: var(--bad); }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
@@ -208,6 +209,7 @@ svg.chart { display: block; width: 100%; height: auto; overflow: visible; font-f
 .chart .node rect { fill: var(--card); stroke: var(--rule-2); }
 .chart .edge { stroke: var(--rule-2); stroke-width: 1.5; fill: none; }
 .chart .ease { transition: all .35s ease; }
+.chart .grow { transition: r .45s ease; }
 
 /* floating chart tooltip */
 .tip {

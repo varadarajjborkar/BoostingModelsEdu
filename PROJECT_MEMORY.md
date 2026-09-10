@@ -143,7 +143,7 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
 - [x] Phase 0: repo, memory, plan
 - [x] Phase 1: design system, shared JS, home page
 - [x] Phase 2: Warm-up page + Vercel config (vercel.json, .vercelignore, 404.html)
-- [ ] Phase 3: AdaBoost
+- [x] Phase 3: AdaBoost (flashcard metaphor, stepper with weights as dot size, alpha explorer)
 - [ ] Phase 4: Gradient Boosting
 - [ ] Phase 5: XGBoost
 - [ ] Phase 6: LightGBM
@@ -172,3 +172,15 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
   data for a demo, test candidate settings in node (load viz.js + ml.js with `vm`).
 - Headless Chrome with a fresh `--user-data-dir` can hang after writing the PNG: run it in the
   background, wait for the file, then kill it (add `--no-first-run --disable-extensions`).
+  Crop with Pillow (scratch venv), not `sips` (its crop offset is unreliable).
+- Steppers support a hash deep link for screenshots/sharing, e.g.
+  `01-adaboost.html#ada=25&data=noisy` pre-runs 25 rounds. Add the same to later steppers.
+- AdaBoost team shading uses `tanh(3 * score / sum|alpha|)` so the shape stays visible.
+  "Circle + wrong labels" flips the 6 deepest dots (they end up with ~3x their fair weight).
+
+## Polish to-do (Phase 9)
+
+- Replace inline `style="margin-top:..."` etc. with small utility classes (editor warnings).
+- Add `type="button"` to every `.seg` button.
+- Mobile check at 400px width for every page; long SVG labels.
+- README with how to run locally + deploy on Vercel.
