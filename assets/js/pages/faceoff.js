@@ -13,7 +13,7 @@
       { key: 'cat', name: 'CatBoost', col: 'var(--c2)', why: 'Handles word columns best (no leaks) and is strong with its default settings.' },
     ];
     const ans = [0, 0, 0];
-    const W = 520, H = 150, MAXS = 6;
+    const W = V.pick(520, 340), H = 150, MAXS = 6;
     const s = V.svg('#pk-bars', W, H, 'How well each library fits your answers');
 
     function draw() {
@@ -47,7 +47,7 @@
     const X = tr.x.map((v) => [v]), Xv = va.x.map((v) => [v]);
     const N = 200, YMAX = 1.4;
     const mse = (p, y) => p.reduce((a, v, i) => a + (v - y[i]) ** 2, 0) / y.length;
-    const W = 1000, H = 300;
+    const W = V.pick(1000, 340), H = V.pick(300, 260);
     const s = V.svg(root.querySelector('.plot'), W, H, 'Training and validation error as trees are added');
 
     function run() {
@@ -71,7 +71,7 @@
       const cp = V.el('clipPath', { id: 'es-clip' }, defs);
       V.el('rect', { x: f.left, y: f.top, width: f.iw, height: f.ih }, cp);
       V.el('rect', { x: f.sx(best), y: f.top, width: f.right - f.sx(best), height: f.ih, fill: 'var(--c4-wash)' }, s);
-      V.axes(s, f, { xVals: [0, 25, 50, 75, 100, 125, 150, 175, 200], yVals: [0, 0.35, 0.7, 1.05, 1.4], fmtY: (v) => v.toFixed(2), xLabel: 'number of trees' });
+      V.axes(s, f, { xVals: V.pick([0, 25, 50, 75, 100, 125, 150, 175, 200], [0, 50, 100, 150, 200]), yVals: [0, 0.35, 0.7, 1.05, 1.4], fmtY: (v) => v.toFixed(2), xLabel: 'number of trees' });
       const line = (arr, col) => V.el('path', {
         d: V.line(arr.map((v, t) => [f.sx(t), f.sy(v)])), fill: 'none', stroke: col, 'stroke-width': 2.2, 'clip-path': 'url(#es-clip)',
       }, s);
@@ -80,8 +80,16 @@
       const bx = f.sx(best);
       V.el('line', { x1: bx, x2: bx, y1: f.top, y2: f.bottom, stroke: 'var(--good)', 'stroke-width': 2 }, s);
       V.el('circle', { cx: bx, cy: f.sy(Math.min(val[best], YMAX)), r: 5.5, fill: 'var(--good)', stroke: 'var(--card)', 'stroke-width': 2 }, s);
-      V.text(s, bx + 8, f.top + 14, `stop here: ${best} trees`, { class: 'lbl-strong' });
-      if (best < N - 25) V.text(s, f.right - 8, f.top + 14, 'extra trees only memorize →', { class: 'lbl', 'text-anchor': 'end' });
+      // The labels measure themselves: flip to the left of the line near the right edge,
+      // and drop to a second row if the two would touch.
+      const stop = V.text(s, bx + 8, f.top + 14, `stop here: ${best} trees`, { class: 'lbl-strong halo' });
+      const sBox = stop.getBBox();
+      if (sBox.x + sBox.width > f.right) { stop.setAttribute('x', bx - 8); stop.setAttribute('text-anchor', 'end'); }
+      if (best < N - 25) {
+        const more = V.text(s, f.right - 8, f.top + 14, V.pick('extra trees only memorize →', 'extra trees memorize →'), { class: 'lbl', 'text-anchor': 'end' });
+        const a = stop.getBBox(), b = more.getBBox();
+        if (a.x + a.width + 10 > b.x && b.x + b.width + 10 > a.x) more.setAttribute('y', f.top + 34);
+      }
 
       document.getElementById('es-best').textContent = best;
       document.getElementById('es-err').textContent = val[best].toFixed(3);

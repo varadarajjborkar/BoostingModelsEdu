@@ -19,9 +19,9 @@
     const xs = Array.from({ length: 401 }, (_, i) => i / 40);
     let model;
 
-    const W = 520;
-    const sTop = V.svg(root.querySelector('.plot-top'), W, 250, 'Data dots and the team guess line');
-    const ft = V.frame({ W, H: 250, m: { t: 12, r: 14, b: 28, l: 38 }, x: [0, 10], y: [-3.4, 3.8] });
+    const W = V.pick(520, 340), HT = V.pick(250, 220), HB = V.pick(200, 170);
+    const sTop = V.svg(root.querySelector('.plot-top'), W, HT, 'Data dots and the team guess line');
+    const ft = V.frame({ W, H: HT, m: { t: 12, r: 14, b: 28, l: 38 }, x: [0, 10], y: [-3.4, 3.8] });
     V.axes(sTop, ft, { xTicks: 5, yTicks: 4 });
     data.x.forEach((x, i) => V.el('circle', { cx: ft.sx(x), cy: ft.sy(data.y[i]), r: 3.8, fill: 'var(--ink-2)', 'fill-opacity': 0.5 }, sTop));
     const prevPath = V.el('path', { fill: 'none', stroke: 'var(--rule-2)', 'stroke-width': 2 }, sTop);
@@ -29,8 +29,8 @@
 
     const avg = ML.mean(data.y);
     const rmax = Math.max(...data.y.map((v) => Math.abs(v - avg))) + 0.3;
-    const sBot = V.svg(root.querySelector('.plot-bottom'), W, 200, 'Leftover of each dot, and the newest tree fitted to them');
-    const fb = V.frame({ W, H: 200, m: { t: 10, r: 14, b: 28, l: 38 }, x: [0, 10], y: [-rmax, rmax] });
+    const sBot = V.svg(root.querySelector('.plot-bottom'), W, HB, 'Leftover of each dot, and the newest tree fitted to them');
+    const fb = V.frame({ W, H: HB, m: { t: 10, r: 14, b: 28, l: 38 }, x: [0, 10], y: [-rmax, rmax] });
     V.axes(sBot, fb, { xTicks: 5, yTicks: 4 });
     V.el('line', { x1: fb.left, x2: fb.right, y1: fb.sy(0), y2: fb.sy(0), stroke: 'var(--ink-2)', 'stroke-width': 1 }, sBot);
     const stemG = V.el('g', {}, sBot);
@@ -135,10 +135,10 @@
     });
 
     // test-error chart
-    const TW = 1000, TH = 230;
+    const TW = V.pick(1000, 340), TH = V.pick(230, 220);
     const st = V.svg('#lr-test', TW, TH, 'Error on new data for each learning rate, as trees are added');
     const ft = V.frame({ W: TW, H: TH, m: { t: 12, r: 60, b: 30, l: 44 }, x: [0, N], y: [0.3, 1.3] });
-    V.axes(st, ft, { xVals: [0, 25, 50, 75, 100, 125, 150], yVals: [0.4, 0.7, 1, 1.3], fmtY: (v) => v.toFixed(1), xLabel: 'number of trees' });
+    V.axes(st, ft, { xVals: V.pick([0, 25, 50, 75, 100, 125, 150], [0, 50, 100, 150]), yVals: [0.4, 0.7, 1, 1.3], fmtY: (v) => v.toFixed(1), xLabel: 'number of trees' });
     const clipId = 'lr-clip';
     const defs = V.el('defs', {}, st);
     const cp = V.el('clipPath', { id: clipId }, defs);
@@ -189,9 +189,8 @@
       abs: { f: (F) => Math.abs(Y - F), g: (F) => (Math.abs(Y - F) < 1e-9 ? 0 : -Math.sign(Y - F)), yMax: 6.5 },
     };
     let kind = 'sq', F = 2.2;
-    const W = 520, H = 320;
+    const W = V.pick(520, 340), H = V.pick(320, 260);
     const s = V.svg(root.querySelector('.plot'), W, H, 'The loss bowl for one dot, with the downhill arrow');
-    s.style.touchAction = 'none';
     const layer = V.el('g', {}, s);
     let f;
 
@@ -223,6 +222,7 @@
       }
       V.el('line', { x1: f.sx(F), x2: f.sx(F), y1: f.sy(y0), y2: f.bottom, stroke: 'var(--rule-2)', 'stroke-width': 1 }, layer);
       V.el('circle', { cx: f.sx(F), cy: f.sy(Math.min(y0, L.yMax)), r: 7, fill: 'var(--ink)', stroke: 'var(--card)', 'stroke-width': 2 }, layer);
+      V.el('circle', { cx: f.sx(F), cy: f.sy(Math.min(y0, L.yMax)), r: 22, fill: 'transparent', 'data-grip': '' }, layer);   // finger-sized handle
 
       document.getElementById('gr-f').textContent = F.toFixed(2);
       document.getElementById('gr-g').textContent = g.toFixed(2);

@@ -17,7 +17,7 @@
 
 <main>
   <section class="wrap hero">
-    <div class="kicker"><span class="dot"></span>Chapter 04 · LightGBM</div>
+    <div class="kicker"><span class="dot"></span>Core model</div>
     <h1>LightGBM: built for <em>speed</em></h1>
     <p class="big-idea">The same boosting idea with four speed tricks: put numbers into buckets, grow the most useful leaf first, study the hard dots closely, and pack lonely columns together.</p>
     <div class="meta-row"><span class="pill">≈ 18 min</span><span class="pill">4 things to play with</span><span class="pill">★ Core model</span></div>
@@ -63,7 +63,7 @@
   <!-- 1. Buckets -->
   <section class="sec wrap">
     <div class="sec-head">
-      <span class="sec-num">01</span>
+      <span class="sec-num">1</span>
       <h2>Put the numbers into buckets</h2>
       <p class="lede">Checking every possible cut is slow. LightGBM sorts values into a few buckets <mark>once</mark>, then only tries the bucket edges. Fewer checks, almost the same answer.</p>
     </div>
@@ -98,7 +98,7 @@
   <!-- 2. Leaf-wise -->
   <section class="sec wrap">
     <div class="sec-head">
-      <span class="sec-num">02</span>
+      <span class="sec-num">2</span>
       <h2>Grow the most useful leaf first</h2>
       <p class="lede">Most trees grow <b>level by level</b>, like filling a pyramid. LightGBM grows <b>leaf-wise</b>: every step it splits the one leaf that lowers the error the most, wherever it is.</p>
     </div>
@@ -141,7 +141,7 @@
   <!-- 3. GOSS -->
   <section class="sec wrap">
     <div class="sec-head">
-      <span class="sec-num">03</span>
+      <span class="sec-num">3</span>
       <h2>Study the hard dots, skim the easy ones (GOSS)</h2>
       <p class="lede">Dots with a big leftover teach the most. GOSS keeps all the hard dots, takes a small random sample of the easy ones, and makes each sampled easy dot <mark>count extra</mark> so the totals stay fair.</p>
     </div>
@@ -172,7 +172,7 @@
   <!-- 4. EFB -->
   <section class="sec wrap">
     <div class="sec-head">
-      <span class="sec-num">04</span>
+      <span class="sec-num">4</span>
       <h2>Pack lonely columns together (EFB)</h2>
       <p class="lede">Some columns are almost always zero, and never non-zero at the same time, like "is red", "is green", "is blue". LightGBM squeezes them into <mark>one</mark> column without losing anything.</p>
     </div>

@@ -90,10 +90,12 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
 
 - `V` (viz.js): `svg(host,W,H,label)`, `frame({W,H,m,x,y})` gives `{sx,sy,left,right,top,bottom,iw,ih}`,
   `axes(parent,f,opts)`, `el`, `text`, `line(pts)`, `rng(seed)`, datasets `wave/moons/ring/blobs`,
-  `regions(parent,f,scoreFn)`, `tree(svg,root,{W,H,boxW,boxH,font})` (node = `{lines, tone:'split'|'a'|'b', faded, children}`),
+  `regions(parent,f,scoreFn)`, `tree(svg,root,{W,H,boxW,boxH,font,horizontal})` (node = `{lines, tone:'split'|'a'|'b', faded, children}`;
+  `horizontal:true` = root on the left, leaves stacked, used for wide trees on phones),
   `tip(html,evt)`, `slider(id,cb,fmt)` (uses `<output for=id>`),
   `seg(id,cb)`, `player({host,step,reset,canStep,speed})` (buttons `data-act=step|play|reset`),
-  `drag(svg,handle,cb,axis)`, `fmt`, `clamp`, `onVisible(el,fn)`.
+  `drag(svg,handle,cb,axis)` (axis may be a function; see "Phones and fingers"), `fmt`, `clamp`, `onVisible(el,fn)`,
+  `phone` (true when the page loaded at <= 600px wide) and `pick(desktop, phone)`.
 - `ML` (ml.js): `fitStump`, `AdaBoost`, `fitRegTree`, `predictTree`, `leaves`, `fitClassTree`,
   `GBM`, `fitXgbTree(X,g,h,{maxDepth,lambda,gamma})`, `growTree(X,r,{policy,maxLeaves})`.
 - `SITE` (common.js): `CHAPTERS`, `visited()`, `tex()`. Pages set `<body data-page=slug data-root="../">`
@@ -104,6 +106,35 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
   `pre.code > code.language-python`, `pre.pseudo (b/i/u)`, `.remember`, `.quiz[data-answer] .opt .why`,
   `.term[data-tip]`, `table.t` in `.table-wrap`, `.q-text`, `.ghost/.shown`, `.badge`.
 
+## Phones and fingers (Phase 10, keep this working)
+
+- **Charts get a phone drawing, not a shrunk desktop one.** Every chart picks its size with
+  `V.pick(desktopW, 340)` (heights too), so on a phone the viewBox is about as wide as the
+  screen and text is near real pixels. Phone-only CSS bumps chart text a little
+  (`.chart .axis text` 11.5 etc.). Wide trees switch to `horizontal:true`; the CatBoost leaf
+  table becomes 2 rows of 4; crowded labels get a shorter phone wording via `V.pick`.
+  Layout is chosen once at load (no re-draw on rotate: charts still scale fluidly).
+- **Drag model** (`V.drag`): mouse drags anywhere. Finger: tap = jump there, sideways swipe =
+  drag, up/down swipe = page scroll (the svg gets `touch-action: pan-y`). Anything marked
+  `data-grip` (big transparent hit circles/lines, r 22 / stroke 30) drags in every direction
+  and blocks scrolling; use it for y-axis handles (flat guess lines, knobs).
+  Never set `touch-action: none` on a whole chart again: it traps page scrolling.
+- **Tap targets**: under `@media (pointer: coarse)` buttons, toggles, tabs, nav links, sliders
+  and quiz options are at least 44px tall. Hover effects live in `@media (hover: hover)`.
+- **Glossary words** (`.term[data-tip]`) use a JS bubble (`initTerms` in common.js) that works on
+  tap, stays on screen, and closes on tap elsewhere, scroll or Esc.
+- Wide tables, the hood tabs and long equations show soft edge shadows while there is more
+  to scroll (background `local` covers). On phones the first table column is sticky.
+- `.chart .halo` puts a paper-coloured outline behind a label that crosses lines or bars.
+- Checks: `node tools/phone-audit.mjs` (390px phone with touch: overflow, tap targets < 44px,
+  text < 12px, chart text < 10px on screen, overlapping or escaping labels, script errors;
+  `W=360` for small phones, `DESKTOP=1 W=1300` for desktop, `SHOTS=1 DPR=1.5` for full-page PNGs
+  in the temp folder; DPR 2 on pages taller than ~8000px hits Chrome's 16384px capture limit and
+  the image repeats) and `node tools/touch-test.mjs` (24 real touch gestures: scroll past charts,
+  tap, sideways drag, grip drag, slider, glossary, tabs, quiz, toggles). Both drive headless
+  Chrome over the DevTools protocol with Node's built-in WebSocket (Node 22+), no packages.
+  Known and accepted: at 360px the two sideways trees show their small second lines at ~9.6px.
+
 ## Page structure (every lesson page follows this rhythm)
 
 1. Hero: title + one-line "big idea".
@@ -112,6 +143,11 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
 4. "Under the hood" tabs: Math | Pseudo-code | Python class | Library usage.
 5. "Remember it" card (3 bullets) + Quick check quiz (2 to 3 questions).
 6. Prev / next navigation (auto from CHAPTERS).
+
+No chapter numbers anywhere visible (user asked, 2026-09-11): the top nav shows titles only,
+kickers are words ("Start here", "The classic booster", "The core recipe", "Core model",
+"The finale"), home cards show the chapter's short line (`sub`), section numbers are plain
+`1, 2, 3` (never `01`). The file slugs keep their `00-` prefixes (URLs only).
 
 ## Palette (tokens in assets/css/style.css)
 
@@ -139,7 +175,7 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
   `assets/js/pages/*.js` (one per page)
 - `README.md`: run locally, deploy on Vercel, Python classes, layout (not deployed)
 - `code/*.py`: runnable from-scratch implementations (`decision_tree.py` done)
-- `tools/embed_code.py`
+- `tools/embed_code.py`, `tools/phone-audit.mjs`, `tools/touch-test.mjs` (not deployed)
 
 ## Phase status (update after each commit)
 
@@ -161,22 +197,30 @@ grep -rniE 'cl[a]ude|co-a[u]thored|gm[a]il\.com|anthrop[i]c' --exclude-dir=.git 
 - [x] Phase 9: polish (`type="button"` on seg buttons, `.sr-only` table headers, README,
   400px phone check via iframe wrapper: all pages fit, wide tables scroll in their box;
   console-error sweep: 0 errors on all 8 pages)
+- [x] Phase 10 (2026-09-11): chapter numbers removed from the nav, kickers, home cards and
+  section labels; full phone + finger pass (see "Phones and fingers"). Audit at 390px: zero
+  findings on all 8 pages; touch test 24/24; desktop unchanged apart from fixes.
 
-## Status: v1 complete (2026-09-10)
+## Status: v1.1 (2026-09-11)
 
-All 7 chapters + home are live-ready. Ideas for a v2 if the user asks:
-- Bigger chart text on phones (SVG labels shrink with the chart).
+All 7 chapters + home are live-ready on desktop and phones. Ideas for later if the user asks:
+
 - Replace remaining inline `style=` attributes with utility classes (editor warnings only).
 - Optional extra topics the user may want later: SHAP / feature importance, tuning with Optuna.
 
 ## How to verify
 
 - `for f in assets/js/*.js assets/js/pages/*.js; do node --check "$f"; done`
-- Headless screenshot:
+- `node tools/phone-audit.mjs` (also `W=360`, `DESKTOP=1 W=1300`) must print no findings
+  (the 4 LightGBM tree panels with no text at step 0 are a known false flag), and
+  `node tools/touch-test.mjs` must end with "all checks passed".
+- Full-page PNGs: `SHOTS=1 DPR=1.5 node tools/phone-audit.mjs` (saved in the temp folder),
+  crop them with Pillow in a scratch venv. For a single part of a page, clip a DevTools
+  screenshot to the element's box (scroll it into view first).
+- Quick desktop screenshot from the command line:
   `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --user-data-dir=<scratch>/chrome --virtual-time-budget=6000 --screenshot=out.png --window-size=1300,2400 file://$PWD/pages/xx.html`
   (always use a scratch `--user-data-dir` so the user's real Chrome profile is untouched;
   CSS transitions do not advance under virtual time, so avoid transitions on live readouts).
-  Crop tall shots with `sips -c <h> <w> --cropOffset <y> 0 in.png --out part.png`.
 - Python: run each `code/*.py` with a numpy venv (scratch venv, not committed).
 
 ## Notes / decisions log
@@ -191,17 +235,10 @@ All 7 chapters + home are live-ready. Ideas for a v2 if the user asks:
 - Headless Chrome with a fresh `--user-data-dir` can hang after writing the PNG: run it in the
   background, wait for the file, then kill it (add `--no-first-run --disable-extensions`).
   Crop with Pillow (scratch venv), not `sips` (its crop offset is unreliable).
-  Chrome will not make a window narrower than ~500px, even headless. For a real phone-width
-  check, screenshot a scratch wrapper page holding `<iframe style="width:400px">` of the page.
-  Console errors: run Chrome with `--enable-logging=stderr --dump-dom` and grep the log.
+  Chrome will not make a window narrower than ~500px from the command line. For phone checks
+  use `tools/phone-audit.mjs` (DevTools device emulation gives a true 390px phone with touch).
+  Console errors: the audit prints them per page.
 - Steppers support a hash deep link for screenshots/sharing, e.g.
   `01-adaboost.html#ada=25&data=noisy` pre-runs 25 rounds. Add the same to later steppers.
 - AdaBoost team shading uses `tanh(3 * score / sum|alpha|)` so the shape stays visible.
   "Circle + wrong labels" flips the 6 deepest dots (they end up with ~3x their fair weight).
-
-## Polish to-do (Phase 9)
-
-- Replace inline `style="margin-top:..."` etc. with small utility classes (editor warnings).
-- Add `type="button"` to every `.seg` button.
-- Mobile check at 400px width for every page; long SVG labels.
-- README with how to run locally + deploy on Vercel.

@@ -7,7 +7,7 @@
     <a class="chap-card${core.has(c.slug) ? ' star' : ''}${c.slug === '06-faceoff' ? ' finale' : ''}${seen.includes(c.slug) ? ' visited' : ''}" href="pages/${c.slug}.html">
       <div class="glyph">${GLYPHS[c.slug]}</div>
       <div>
-        <div class="no">CHAPTER ${String(c.n).padStart(2, '0')}</div>
+        <div class="no">${c.sub}</div>
         <h3>${c.title}</h3>
         <p>${c.idea}</p>
         ${core.has(c.slug) ? '<span class="tag">★ Core model</span>' : ''}
@@ -17,7 +17,7 @@
 
   // ---------- Hero: gradient boosting fitting a wavy curve, live ----------
   const host = document.getElementById('hero-viz');
-  const W = 560, H = 300;
+  const W = V.pick(500, 340), H = V.pick(268, 230);
   const s = V.svg(host.querySelector('.plot'), W, H, 'A line made of small trees slowly bending to fit wavy data');
   const data = V.wave(70, 7, 0.3);
   const X = data.x.map((v) => [v]);

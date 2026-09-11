@@ -9,15 +9,18 @@ see is what the algorithm actually does.
 
 ## Chapters
 
-| # | Page | Big idea |
-|---|------|----------|
-| 00 | Warm-up | A tree is a game of yes/no questions. Bagging vs boosting. |
-| 01 | AdaBoost | Missed points get heavier. Good helpers vote louder. |
-| 02 | Gradient Boosting | Each new tree fixes the leftover error. |
-| 03 | XGBoost | Slope + curve, a split scorecard, and brakes (λ, γ). |
-| 04 | LightGBM | Buckets, leaf-wise growth, GOSS and feature bundling. |
-| 05 | CatBoost | Categories without leaking the answer. Symmetric trees. |
-| 06 | Face-off | Which one to pick, same knobs with different names, early stopping. |
+| Page | Big idea |
+| ---- | -------- |
+| Warm-up | A tree is a game of yes/no questions. Bagging vs boosting. |
+| AdaBoost | Missed points get heavier. Good helpers vote louder. |
+| Gradient Boosting | Each new tree fixes the leftover error. |
+| XGBoost | Slope + curve, a split scorecard, and brakes (λ, γ). |
+| LightGBM | Buckets, leaf-wise growth, GOSS and feature bundling. |
+| CatBoost | Categories without leaking the answer. Symmetric trees. |
+| Face-off | Which one to pick, same knobs with different names, early stopping. |
+
+Works on phones too: charts redraw at phone size, controls are finger-sized, and the
+draggable charts still let you scroll the page with an up/down swipe.
 
 Every chapter has the same rhythm: a story, things to play with, "under the hood" tabs
 (math, pseudo-code, a from-scratch Python class, library usage), then a short recap and quiz.
@@ -74,4 +77,19 @@ assets/js/glyphs.js     the small chapter icons
 assets/js/pages/        the interactive parts of each chapter
 code/                   runnable from-scratch Python classes
 tools/embed_code.py     copies code/*.py into the pages
+tools/phone-audit.mjs   checks every page as a phone (sizes, tap targets, label overlaps, errors)
+tools/touch-test.mjs    plays real finger gestures on the charts and checks the result
 ```
+
+## Checks
+
+Both tools drive a headless Chrome with Node 22 or newer (no packages to install):
+
+```sh
+node tools/phone-audit.mjs              # 390px phone with touch
+W=360 node tools/phone-audit.mjs        # small phone
+DESKTOP=1 W=1300 node tools/phone-audit.mjs
+node tools/touch-test.mjs
+```
+
+Set `CHROME=/path/to/chrome` if Chrome is not in the usual macOS place.

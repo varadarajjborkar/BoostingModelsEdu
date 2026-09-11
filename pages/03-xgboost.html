@@ -17,7 +17,7 @@
 
 <main>
   <section class="wrap hero">
-    <div class="kicker"><span class="dot"></span>Chapter 03 · XGBoost</div>
+    <div class="kicker"><span class="dot"></span>Core model</div>
     <h1>XGBoost: boosting with <em>brakes</em></h1>
     <p class="big-idea">The same recipe as gradient boosting, with three upgrades: it feels how curved the bowl is, it scores every split with a clear scorecard, and it charges a fee for every branch.</p>
     <div class="meta-row"><span class="pill">≈ 20 min</span><span class="pill">4 things to play with</span><span class="pill">★ Core model</span></div>
@@ -61,7 +61,7 @@
   <!-- 1. Newton -->
   <section class="sec wrap">
     <div class="sec-head">
-      <span class="sec-num">01</span>
+      <span class="sec-num">1</span>
       <h2>Slope + curve = smarter steps</h2>
       <p class="lede">Two walkers try to reach the bottom. One only knows the slope. The other also knows the <mark>curve</mark>, so it jumps to the bottom of a matching bowl.</p>
     </div>
@@ -101,13 +101,13 @@
   <!-- 2. Scorecard -->
   <section class="sec wrap">
     <div class="sec-head">
-      <span class="sec-num">02</span>
+      <span class="sec-num">2</span>
       <h2>The split scorecard</h2>
       <p class="lede">XGBoost scores every possible cut with one simple number: the <mark>gain</mark>. Pick a cut, then play with the brake λ and the fee γ.</p>
     </div>
     <div class="viz" id="sc-viz">
       <div class="viz-top">
-        <span class="viz-title">8 dots and their leftovers. Click or drag to choose where to cut.</span>
+        <span class="viz-title">8 dots and their leftovers. Tap or drag to choose where to cut.</span>
         <span class="viz-hint">squared error, so every dot has curve h = 1</span>
       </div>
       <div class="controls">
@@ -139,7 +139,7 @@
   <!-- 3. Whole tree pruning -->
   <section class="sec wrap">
     <div class="sec-head">
-      <span class="sec-num">03</span>
+      <span class="sec-num">3</span>
       <h2>Watch a whole tree get pruned</h2>
       <p class="lede">A real depth-3 XGBoost tree on 30 dots. Raise γ and weak branches fall off. Raise λ and every leaf value shrinks toward 0.</p>
     </div>
@@ -168,7 +168,7 @@
   <!-- 4. Missing values -->
   <section class="sec wrap">
     <div class="sec-head">
-      <span class="sec-num">04</span>
+      <span class="sec-num">4</span>
       <h2>Missing values? It learns a default path</h2>
       <p class="lede">Some dots have no value for this feature. XGBoost tries sending them <mark>left</mark>, then <mark>right</mark>, and keeps whichever gives more gain.</p>
     </div>
@@ -186,7 +186,7 @@
   <!-- 5. Speed -->
   <section class="sec wrap">
     <div class="sec-head">
-      <span class="sec-num">05</span>
+      <span class="sec-num">5</span>
       <h2>Why it is fast</h2>
       <p class="lede">The math above makes it smart. These engineering tricks make it quick.</p>
     </div>

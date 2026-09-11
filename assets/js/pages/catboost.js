@@ -9,7 +9,8 @@
     const root = document.getElementById('lk-viz');
     const N = 200, SHOPS = 100, A = 1;
     let seed = 1;
-    const W = 520, H = 280;
+    const W = V.pick(520, 340), H = V.pick(280, 250);
+    const OFF = V.pick(30, 22), BW = V.pick(44, 36);   // bar offset from the group centre, bar width
     const s = V.svg(root.querySelector('.plot'), W, H, 'Accuracy on training rows and new rows, for leaky and ordered encoding');
 
     // A tiny "model": answer 1 when the encoded number is above a threshold. Pick the best threshold on training rows.
@@ -57,14 +58,14 @@
       V.axes(s, f, { xVals: [], yVals: [0, 0.25, 0.5, 0.75, 1], fmtY: pct });
       const y50 = f.sy(0.5);
       V.el('line', { x1: f.left, x2: f.right, y1: y50, y2: y50, stroke: 'var(--ink)', 'stroke-width': 1 }, s);
-      V.text(s, f.sx(1), y50 - 6, 'coin flip = 50%', { class: 'lbl-sm', 'text-anchor': 'middle' });   // sits in the gap between the two groups
+      V.text(s, f.sx(1), y50 - 6, V.pick('coin flip = 50%', 'coin flip'), { class: 'lbl-sm', 'text-anchor': 'middle' });   // sits in the gap between the two groups
       [['leaky', 'Leaky (all rows)'], ['ordered', 'Ordered (CatBoost)']].forEach(([key, label], g) => {
         const cx = f.sx(g + 0.5);
         [['train', 'var(--ink-2)', -1], ['fresh', 'var(--c3)', 1]].forEach(([k, col, side]) => {
           const v = res[key][k];
-          const x = cx + side * 30 - 22, yv = f.sy(v);
-          V.el('rect', { x, y: yv, width: 44, height: f.bottom - yv, rx: 4, fill: col }, s);
-          V.text(s, x + 22, yv - 6, pct(v), { class: 'lbl-strong', 'text-anchor': 'middle' });
+          const x = cx + side * OFF - BW / 2, yv = f.sy(v);
+          V.el('rect', { x, y: yv, width: BW, height: f.bottom - yv, rx: 4, fill: col }, s);
+          V.text(s, x + BW / 2, yv - 6, pct(v), { class: 'lbl-strong halo', 'text-anchor': 'middle' });
         });
         V.text(s, cx, f.bottom + 20, label, { class: 'lbl', 'text-anchor': 'middle' });
       });
@@ -140,9 +141,9 @@
     const Q = ['size > 5?', 'is red?', 'weight > 2?'];
     const leafVals = [-0.8, -0.3, 0.2, 0.6, -0.1, 0.4, 0.9, 1.3];
     const ans = [0, 1, 0];
-    const W = 1000, H = 250;
+    const W = V.pick(1000, 340), H = V.pick(250, 340);
     const st = V.svg('#ob-tree', W, H, 'A depth-3 symmetric tree; the path for the chosen answers is highlighted');
-    const sl = V.svg('#ob-leaves', W, 86, 'The 8-leaf lookup table');
+    const sl = V.svg('#ob-leaves', W, V.pick(86, 164), 'The 8-leaf lookup table');
 
     const bits = (d) => ans.slice(0, d).reduce((a, b) => a * 2 + b, 0);
     function node(d, prefix) {
@@ -155,20 +156,23 @@
 
     function draw() {
       const idx = bits(3);
-      V.tree(st, node(0, 0), { W, H, boxW: 104, boxH: 38, font: 11.5 });
+      // Phones get a sideways tree (root on the left) so all 8 leaves fit.
+      V.tree(st, node(0, 0), V.pick({ W, H, boxW: 104, boxH: 38, font: 11.5 }, { W, H, boxW: 74, boxH: 34, font: 11, horizontal: true }));
       V.clear(sl);
-      const cw = W / 8;
+      const per = V.pick(8, 4), cw = W / per;   // phones: two rows of four
       leafVals.forEach((v, i) => {
         const on = i === idx;
-        V.el('rect', { x: i * cw + 3, y: 4, width: cw - 6, height: 70, rx: 10, fill: on ? 'var(--c2-wash)' : 'var(--paper)', stroke: on ? 'var(--c2)' : 'var(--rule)', 'stroke-width': on ? 1.5 : 1 }, sl);
-        V.text(sl, i * cw + cw / 2, 26, i.toString(2).padStart(3, '0'), { 'text-anchor': 'middle', 'font-size': 13, 'font-family': 'var(--mono)', fill: 'var(--ink-2)' });
-        V.text(sl, i * cw + cw / 2, 46, `leaf ${i}`, { class: 'lbl-sm', 'text-anchor': 'middle' });
-        V.text(sl, i * cw + cw / 2, 64, `value ${v.toFixed(1)}`, { 'text-anchor': 'middle', 'font-size': 12.5, 'font-weight': on ? 600 : 400, fill: 'var(--ink)' });
+        const x0 = (i % per) * cw, y0 = Math.floor(i / per) * 80;
+        V.el('rect', { x: x0 + 3, y: y0 + 4, width: cw - 6, height: 70, rx: 10, fill: on ? 'var(--c2-wash)' : 'var(--paper)', stroke: on ? 'var(--c2)' : 'var(--rule)', 'stroke-width': on ? 1.5 : 1 }, sl);
+        V.text(sl, x0 + cw / 2, y0 + 26, i.toString(2).padStart(3, '0'), { 'text-anchor': 'middle', 'font-size': 13, 'font-family': 'var(--mono)', fill: 'var(--ink-2)' });
+        V.text(sl, x0 + cw / 2, y0 + 46, `leaf ${i}`, { class: 'lbl-sm', 'text-anchor': 'middle' });
+        V.text(sl, x0 + cw / 2, y0 + 64, `value ${v.toFixed(1)}`, { 'text-anchor': 'middle', 'font-size': 12.5, 'font-weight': on ? 600 : 400, fill: 'var(--ink)' });
       });
       const b = idx.toString(2).padStart(3, '0');
       document.getElementById('ob-say').innerHTML =
         `Answers: <b>${ans.map((a) => (a ? 'yes' : 'no')).join(', ')}</b> → binary <b>${b}</b> → leaf <b>#${idx}</b> → value <b>${leafVals[idx].toFixed(1)}</b>. ` +
-        'Left branch = no, right branch = yes. Whatever the path, each level asks the same question.';
+        V.pick('Left branch = no, right branch = yes.', 'Upper branch = no, lower branch = yes.') +
+        ' Whatever the path, each level asks the same question.';
     }
     ['ob-q1', 'ob-q2', 'ob-q3'].forEach((id, i) => V.seg(id, (v) => { ans[i] = Number(v); draw(); }));
     draw();

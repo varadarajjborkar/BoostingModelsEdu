@@ -23,16 +23,16 @@
     let exactK = 1;
     for (let k = 1; k < n; k++) if (gainAt(k) > gainAt(exactK)) exactK = k;
 
-    const W = 520;
-    const s = V.svg(root.querySelector('.plot'), W, 250, '300 dots with bucket edges and the best cuts');
-    const f = V.frame({ W, H: 250, m: { t: 10, r: 12, b: 28, l: 36 }, x: [0, 10], y: [-3.6, 3.6] });
+    const W = V.pick(520, 340), H1 = V.pick(250, 220), H2 = V.pick(150, 130);
+    const s = V.svg(root.querySelector('.plot'), W, H1, '300 dots with bucket edges and the best cuts');
+    const f = V.frame({ W, H: H1, m: { t: 10, r: 12, b: 28, l: 36 }, x: [0, 10], y: [-3.6, 3.6] });
     V.axes(s, f, { xTicks: 5, yTicks: 4 });
     const edgeG = V.el('g', {}, s);
     xs.forEach((x, i) => V.el('circle', { cx: f.sx(x), cy: f.sy(rs[i]), r: 2.6, fill: 'var(--ink-2)', 'fill-opacity': 0.5 }, s));
     const ex = f.sx(cutX(exactK));
     V.el('line', { x1: ex, x2: ex, y1: f.top, y2: f.bottom, stroke: 'var(--ink)', 'stroke-width': 2 }, s);
     const binLine = V.el('line', { y1: f.top, y2: f.bottom, stroke: 'var(--c2)', 'stroke-width': 2.5 }, s);
-    const sh = V.svg('#bn-hist', W, 150, 'Sum of leftovers in each bucket');
+    const sh = V.svg('#bn-hist', W, H2, 'Sum of leftovers in each bucket');
 
     function update(v) {
       const B = BUCKETS[v];
@@ -56,7 +56,7 @@
       const bounds = [0, ...cuts, n];
       const sums = bounds.slice(0, -1).map((lo, b) => prefix[bounds[b + 1]] - prefix[lo]);
       const mx = Math.max(1, ...sums.map(Math.abs)) * 1.1;
-      const fh = V.frame({ W, H: 150, m: { t: 8, r: 12, b: 24, l: 36 }, x: [0, 10], y: [-mx, mx] });
+      const fh = V.frame({ W, H: H2, m: { t: 8, r: 12, b: 24, l: 36 }, x: [0, 10], y: [-mx, mx] });
       V.axes(sh, fh, { xTicks: 5, yVals: [-Math.round(mx * 0.8), 0, Math.round(mx * 0.8)] });
       sums.forEach((v2, b) => {
         const lo = b === 0 ? 0 : cutX(bounds[b]);
@@ -92,7 +92,7 @@
     const steps = Math.min(...runs.map((r) => r.snapshots.length)) - 1;
     let k = 0;
 
-    const MW = 480, MH = 280, TW = 480, TH = 170;
+    const MW = V.pick(480, 340), MH = V.pick(280, 220), TW = V.pick(480, 340), TH = V.pick(170, 150);
     runs.forEach((r) => {
       r.map = V.svg(root.querySelector(`.gw-${r.policy}-map`), MW, MH, `${r.policy}-wise partition of the plane`);
       r.tree = V.svg(root.querySelector(`.gw-${r.policy}-tree`), TW, TH, `${r.policy}-wise tree, split order numbered`);
@@ -107,10 +107,11 @@
     });
 
     // error chart
-    const CW = 1000, CH = 160;
+    const CW = V.pick(1000, 340), CH = V.pick(160, 170);
     const sc = V.svg('#gw-chart', CW, CH, 'Error for level-wise and leaf-wise as leaves are added');
-    const fc = V.frame({ W: CW, H: CH, m: { t: 10, r: 70, b: 28, l: 40 }, x: [1, steps + 1], y: [0, 1] });
-    V.axes(sc, fc, { xVals: Array.from({ length: steps + 1 }, (_, i) => i + 1), yVals: [0, 0.5, 1], xLabel: 'leaves' });
+    const fc = V.frame({ W: CW, H: CH, m: { t: 10, r: V.pick(70, 14), b: 28, l: 40 }, x: [1, steps + 1], y: [0, 1] });
+    const leafTicks = Array.from({ length: steps + 1 }, (_, i) => i + 1).filter((v) => !V.phone || v % 2 === 1);
+    V.axes(sc, fc, { xVals: leafTicks, yVals: [0, 0.5, 1], xLabel: 'leaves' });
     const cols = { level: 'var(--ink-2)', leaf: 'var(--c3)' };
     runs.forEach((r) => {
       const pts = r.snapshots.slice(0, steps + 1).map((sn, i) => [fc.sx(i + 1), fc.sy(sn.loss)]);
@@ -148,8 +149,8 @@
           const [[x0, x1], [y0, y1]] = nd.box;
           const cx = nd.f === 0 ? f.sx(nd.thr) : (f.sx(x0) + f.sx(x1)) / 2;
           const cy = nd.f === 0 ? (f.sy(y0) + f.sy(y1)) / 2 : f.sy(nd.thr);
-          V.el('circle', { cx, cy, r: 9, fill: 'var(--ink)', stroke: 'var(--card)', 'stroke-width': 1.5 }, r.cutG);
-          V.text(r.cutG, cx, cy + 3.5, String(nd.order), { 'text-anchor': 'middle', 'font-size': 10, fill: 'var(--paper)', 'font-weight': 600 });
+          V.el('circle', { cx, cy, r: V.pick(9, 10), fill: 'var(--ink)', stroke: 'var(--card)', 'stroke-width': 1.5 }, r.cutG);
+          V.text(r.cutG, cx, cy + 3.5, String(nd.order), { 'text-anchor': 'middle', 'font-size': V.pick(10, 11), fill: 'var(--paper)', 'font-weight': 600 });
         });
         V.tree(r.tree, disp(r.root), { W: TW, H: TH, boxW: 22, boxH: 18, font: 10 });
         document.getElementById(`gw-${r.policy}-err`).textContent = `· error ${r.snapshots[k].loss.toFixed(2)}`;
@@ -178,7 +179,7 @@
     const grads = Array.from({ length: N }, () => Math.abs(rg.normal()) ** 1.6 + 0.02).sort((a, b) => b - a);
     const trueTotal = sum(grads);
     let seed = 1;
-    const W = 1000, H = 230;
+    const W = V.pick(1000, 340), H = 230;
     const s = V.svg(root.querySelector('.plot'), W, H, 'One bar per dot, sorted from biggest leftover to smallest');
 
     function draw() {
@@ -194,14 +195,18 @@
       const ymax = grads[0] * 1.08;          // scale to the hardest dot; tall weighted bars get clipped
       const f = V.frame({ W, H, m: { t: 12, r: 10, b: 24, l: 40 }, x: [0, N], y: [0, ymax] });
       V.axes(s, f, { xVals: [], yTicks: 3, fmtY: (v) => v.toFixed(1), yLabel: 'leftover size' });
-      const bw = f.iw / N - 2;
+      const bw = f.iw / N - V.pick(2, 0.6);
+      let anyClipped = false;
       grads.forEach((g, i) => {
         const x = f.sx(i) + 1;
         if (sampled.has(i)) {
           const clipped = g * w > ymax;
           const yw = f.sy(Math.min(g * w, ymax));
           V.el('rect', { x, y: yw, width: bw, height: f.bottom - yw, rx: 2, fill: 'var(--c1-wash)', stroke: 'var(--c1)', 'stroke-width': 0.8 }, s);
-          if (clipped) V.text(s, x + bw / 2, f.top + 10, '↑', { class: 'lbl-sm', 'text-anchor': 'middle' });
+          if (clipped) {
+            anyClipped = true;
+            if (!V.phone) V.text(s, x + bw / 2, f.top + 9, '↑', { class: 'lbl-sm', 'text-anchor': 'middle' });
+          }
         }
         const y = f.sy(g);
         const fill = i < nTop ? 'var(--c2)' : sampled.has(i) ? 'var(--c1)' : 'var(--rule)';
@@ -209,7 +214,9 @@
       });
       const bx = f.sx(nTop);
       V.el('line', { x1: bx, x2: bx, y1: f.top, y2: f.bottom, stroke: 'var(--ink)', 'stroke-width': 1.2 }, s);
-      V.text(s, bx + 6, f.top + 12, `← hardest ${Math.round(a * 100)}%, always kept`, { class: 'lbl' });
+      // Phone bars are too thin for one arrow each, so one note says it instead.
+      if (anyClipped && V.phone) V.text(s, f.right, f.top + 9, '↑ = bar cut off', { class: 'lbl-sm', 'text-anchor': 'end' });
+      V.text(s, bx + 6, f.top + 28, V.pick(`← hardest ${Math.round(a * 100)}%, always kept`, `← top ${Math.round(a * 100)}% kept`), { class: 'lbl halo' });
 
       document.getElementById('gs-used').textContent = nTop + nOther;
       document.getElementById('gs-w').textContent = '×' + (Math.round(w * 10) / 10);
@@ -238,7 +245,7 @@
       ['is_yellow', 'var(--c4)', 'var(--c4-wash)'],
     ];
     const hot = [0, 2, 1, 3, 2, 0, 1, 2];   // which column is 1 in each row
-    const W = 560, H = 330;
+    const W = V.pick(560, 340), H = 330;
     const s = V.svg(root.querySelector('.plot'), W, H, 'A small table of four mostly-empty columns, and the same data packed into one column');
 
     function cell(x, y, w, h, fill, stroke, label, strong) {
@@ -247,30 +254,30 @@
     }
     function draw(mode) {
       V.clear(s);
-      const top = 36, rowH = 34, left = 64;
+      const top = 36, rowH = 34, left = V.pick(64, 46);
       hot.forEach((_, r) => V.text(s, 8, top + r * rowH + rowH / 2 + 4, `row ${r + 1}`, { class: 'lbl-sm' }));
       if (mode === 'before') {
-        const colW = 118;
+        const colW = V.pick(118, (W - left) / 4);
         feats.forEach(([name], c) => V.text(s, left + c * colW + colW / 2, 22, name, { class: 'lbl', 'text-anchor': 'middle' }));
         hot.forEach((h, r) => feats.forEach(([, col, wash], c) => {
           const on = c === h;
           cell(left + c * colW + 4, top + r * rowH + 3, colW - 8, rowH - 6, on ? wash : 'var(--paper)', on ? col : 'var(--rule)', on ? '1' : '0', on);
         }));
       } else {
-        const colW = 190;
+        const colW = V.pick(190, 150);
         V.text(s, left + colW / 2, 22, 'color_bundle', { class: 'lbl', 'text-anchor': 'middle' });
         hot.forEach((h, r) => {
           const [name, col, wash] = feats[h];
           cell(left + 4, top + r * rowH + 3, colW - 8, rowH - 6, wash, col, `${h + 1}   (${name.replace('is_', '')})`, true);
         });
-        const lx = left + colW + 40;
+        const lx = left + colW + V.pick(40, 16);
         V.text(s, lx, 60, 'The offsets:', { class: 'lbl-strong' });
         feats.forEach(([name, col], i) => {
           V.el('rect', { x: lx, y: 76 + i * 28, width: 12, height: 12, rx: 3, fill: col }, s);
           V.text(s, lx + 20, 86 + i * 28, `${name.replace('is_', '')} → ${i + 1}`, { class: 'lbl' });
         });
-        V.text(s, lx, 206, 'Every value still means', { class: 'lbl-sm' });
-        V.text(s, lx, 222, 'exactly one thing.', { class: 'lbl-sm' });
+        V.pick(['Every value still means', 'exactly one thing.'], ['Each value still', 'means exactly', 'one thing.'])
+          .forEach((t, i) => V.text(s, lx, 206 + i * 16, t, { class: 'lbl-sm' }));
       }
       document.getElementById('ef-cols').textContent = mode === 'before' ? 4 : 1;
       document.getElementById('ef-say').innerHTML = mode === 'before'

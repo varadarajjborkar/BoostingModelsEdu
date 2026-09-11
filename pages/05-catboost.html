@@ -17,7 +17,7 @@
 
 <main>
   <section class="wrap hero">
-    <div class="kicker"><span class="dot"></span>Chapter 05 · CatBoost</div>
+    <div class="kicker"><span class="dot"></span>Core model</div>
     <h1>CatBoost: categories, <em>no cheating</em></h1>
     <p class="big-idea">Real data is full of words: city, brand, colour. CatBoost turns them into numbers without ever peeking at the answer, and grows neat, balanced trees.</p>
     <div class="meta-row"><span class="pill">≈ 18 min</span><span class="pill">4 things to play with</span><span class="pill">★ Core model</span></div>
@@ -61,7 +61,7 @@
   <!-- 1. The problem -->
   <section class="sec wrap">
     <div class="sec-head">
-      <span class="sec-num">01</span>
+      <span class="sec-num">1</span>
       <h2>Words are not numbers</h2>
       <p class="lede">Trees need numbers. So how do we feed them "Pune", "Delhi", "Chennai"? Three common ways:</p>
     </div>
@@ -75,7 +75,7 @@
   <!-- 2. Leak -->
   <section class="sec wrap">
     <div class="sec-head">
-      <span class="sec-num">02</span>
+      <span class="sec-num">2</span>
       <h2>The cheat, caught on camera</h2>
       <p class="lede">Here the answer is a pure coin flip. The shop id has <mark>no link</mark> to it at all. Watch what happens if each row's "average answer" includes its own answer.</p>
     </div>
@@ -103,7 +103,7 @@
   <!-- 3. Queue -->
   <section class="sec wrap">
     <div class="sec-head">
-      <span class="sec-num">03</span>
+      <span class="sec-num">3</span>
       <h2>The fix: only look at the line in front</h2>
       <p class="lede">CatBoost shuffles the rows into a random line. Each row's number uses only the rows <mark>before it</mark> with the same category, plus a small prior so empty history is not zero.</p>
     </div>
@@ -134,7 +134,7 @@
   <!-- 4. Symmetric trees -->
   <section class="sec wrap">
     <div class="sec-head">
-      <span class="sec-num">04</span>
+      <span class="sec-num">4</span>
       <h2>Neat, balanced trees</h2>
       <p class="lede">In a CatBoost tree, every level asks <mark>the same question</mark>. So the answers become a binary number, and the leaf is just a lookup. Flip the answers below.</p>
     </div>

@@ -22,6 +22,10 @@ const V = (() => {
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
   const $ = (sel) => document.querySelector(sel);
 
+  // Phone layout, decided once at load: charts use a narrower drawing so their text stays readable.
+  const phone = matchMedia('(max-width: 600px)').matches;
+  const pick = (desktop, small) => (phone ? small : desktop);
+
   // Linear scale with an inverse.
   function scale(d0, d1, r0, r1) {
     const k = (r1 - r0) / (d1 - d0);
@@ -251,27 +255,47 @@ const V = (() => {
     return { stop, get playing() { return !!timer; } };
   }
 
-  // Make an SVG element draggable along x or y; cb receives data coords.
+  // Make an SVG draggable. onMove gets (x or y in SVG units, the full point).
+  // Mouse: press and drag anywhere. Finger: a tap jumps there, a sideways swipe drags
+  // (so an up/down swipe still scrolls the page), and anything marked data-grip
+  // drags in every direction. `axis` can be a function when it changes at runtime.
   function drag(svgEl, handle, onMove, axis = 'x') {
     const pt = svgEl.createSVGPoint();
-    const toLocal = (e) => {
-      const p = e.touches ? e.touches[0] : e;
-      pt.x = p.clientX; pt.y = p.clientY;
-      return pt.matrixTransform(svgEl.getScreenCTM().inverse());
+    const axisNow = () => (typeof axis === 'function' ? axis() : axis);
+    const fire = (e) => {
+      pt.x = e.clientX; pt.y = e.clientY;
+      const q = pt.matrixTransform(svgEl.getScreenCTM().inverse());
+      onMove(axisNow() === 'x' ? q.x : q.y, q);
     };
-    let on = false;
-    const move = (e) => { if (!on) return; e.preventDefault(); const q = toLocal(e); onMove(axis === 'x' ? q.x : q.y, q); };
-    const up = () => { on = false; };
-    handle.addEventListener('pointerdown', (e) => { on = true; handle.setPointerCapture?.(e.pointerId); move(e); });
-    handle.addEventListener('pointermove', move);
-    handle.addEventListener('pointerup', up);
-    handle.addEventListener('pointercancel', up);
+    const onGrip = (e) => !!e.target.closest?.('[data-grip]');
+    let mode = null, id = null, x0 = 0, y0 = 0;
+    handle.style.touchAction = 'pan-y pinch-zoom';
+    handle.addEventListener('touchstart', (e) => { if (onGrip(e)) e.preventDefault(); }, { passive: false });
+    handle.addEventListener('pointerdown', (e) => {
+      if (e.button > 0) return;
+      id = e.pointerId; x0 = e.clientX; y0 = e.clientY;
+      if (e.pointerType !== 'touch' || onGrip(e)) { mode = 'drag'; handle.setPointerCapture?.(id); fire(e); }
+      else mode = 'wait';            // finger: is it a tap, a sideways drag, or a scroll?
+    });
+    handle.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== id || !mode) return;
+      if (mode === 'wait') {
+        const dx = Math.abs(e.clientX - x0), dy = Math.abs(e.clientY - y0);
+        if (dx < 8 && dy < 8) return;
+        if (axisNow() !== 'x' || dx < dy) { mode = null; return; }
+        mode = 'drag'; handle.setPointerCapture?.(id);
+      }
+      fire(e);
+    });
+    handle.addEventListener('pointerup', (e) => { if (e.pointerId === id && mode === 'wait') fire(e); mode = null; id = null; });
+    handle.addEventListener('pointercancel', () => { mode = null; id = null; });
   }
 
   // ---------- Small tree diagram ----------
   // node = { lines: [bold first line, ...], tone: 'split' | 'a' | 'b', faded, children? }
   // Leaves get equal slots left to right; a parent sits above the middle of its children.
-  function tree(svgEl, root, { W, H, boxW, boxH, font = 11.5 }) {
+  // horizontal: root on the left, leaves stacked top to bottom (fits a narrow phone screen).
+  function tree(svgEl, root, { W, H, boxW, boxH, font = 11.5, horizontal = false }) {
     clear(svgEl);
     let slot = 0, maxD = 0;
     (function walk(n, d) {
@@ -280,8 +304,11 @@ const V = (() => {
       n.children.forEach((c) => walk(c, d + 1));
       n._x = (n.children[0]._x + n.children[n.children.length - 1]._x) / 2;
     })(root, 0);
-    const px = (x) => (slot <= 1 ? W / 2 : boxW / 2 + 4 + (x * (W - boxW - 8)) / (slot - 1));
-    const py = (d) => 4 + (maxD ? (d * (H - boxH - 8)) / maxD : 0);
+    const across = (x, size, box) => (slot <= 1 ? size / 2 : box / 2 + 4 + (x * (size - box - 8)) / (slot - 1));
+    const deep = (d, size, box) => 4 + box / 2 + (maxD ? (d * (size - box - 8)) / maxD : 0);
+    const at = (n) => (horizontal
+      ? [deep(n._d, W, boxW), across(n._x, H, boxH)]
+      : [across(n._x, W, boxW), deep(n._d, H, boxH)]);
     const edges = el('g', {}, svgEl), boxes = el('g', {}, svgEl);
     const TONE = {
       split: ['var(--paper)', 'var(--ink-2)'],
@@ -289,16 +316,20 @@ const V = (() => {
       b: ['var(--c2-wash)', 'var(--c2)'],
     };
     (function walk(n) {
-      const cx = px(n._x), y = py(n._d);
+      const [cx, cy] = at(n);
       (n.children || []).forEach((c) => {
-        el('line', { x1: cx, y1: y + boxH, x2: px(c._x), y2: py(c._d), stroke: 'var(--rule-2)', 'stroke-width': 1.5, opacity: c.faded ? 0.3 : 1 }, edges);
+        const [kx, ky] = at(c);
+        const ends = horizontal
+          ? { x1: cx + boxW / 2, y1: cy, x2: kx - boxW / 2, y2: ky }
+          : { x1: cx, y1: cy + boxH / 2, x2: kx, y2: ky - boxH / 2 };
+        el('line', { ...ends, stroke: 'var(--rule-2)', 'stroke-width': 1.5, opacity: c.faded ? 0.3 : 1 }, edges);
         walk(c);
       });
       const g = el('g', { opacity: n.faded ? 0.28 : 1 }, boxes);
       const [fill, stroke] = TONE[n.tone || 'split'];
-      el('rect', { x: cx - boxW / 2, y, width: boxW, height: boxH, rx: Math.min(8, boxH / 3), fill, stroke, 'stroke-width': 1.2 }, g);
+      el('rect', { x: cx - boxW / 2, y: cy - boxH / 2, width: boxW, height: boxH, rx: Math.min(8, boxH / 3), fill, stroke, 'stroke-width': 1.2 }, g);
       const lh = font + 3.5;
-      const top = y + boxH / 2 - ((n.lines.length - 1) * lh) / 2 + font * 0.35;
+      const top = cy - ((n.lines.length - 1) * lh) / 2 + font * 0.35;
       n.lines.forEach((t, i) => text(g, cx, top + i * lh, t, {
         'text-anchor': 'middle', 'font-size': i === 0 ? font + 0.5 : font,
         'font-weight': i === 0 ? 600 : 400, fill: i === 0 ? 'var(--ink)' : 'var(--ink-2)',
@@ -322,6 +353,6 @@ const V = (() => {
   return {
     el, text, svg, clear, $, scale, niceTicks, frame, axes, line, rng,
     wave, waveFn, moons, ring, blobs, regions, tree, tip, slider, seg, player, drag,
-    fmt, clamp, reducedMotion, onVisible,
+    fmt, clamp, reducedMotion, onVisible, phone, pick,
   };
 })();

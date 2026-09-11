@@ -81,15 +81,21 @@ mark, .hl { background: linear-gradient(transparent 58%, rgba(201, 138, 0, .28) 
 .chap-links { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin-left: auto; }
 .chap-links::-webkit-scrollbar { display: none; }
 .chap-links a {
-  display: flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px;
+  display: flex; align-items: center; padding: 6px 12px; border-radius: 999px;
   font-size: 14px; color: var(--ink-2); text-decoration: none; white-space: nowrap;
 }
-.chap-links a .n { font: 500 11px var(--mono); color: var(--muted); }
-.chap-links a:hover { background: var(--paper-2); }
 .chap-links a.active { background: var(--ink); color: var(--paper); }
-.chap-links a.active .n { color: rgba(251, 247, 239, .6); }
 .progress-bar { position: absolute; left: 0; bottom: -1px; height: 2px; width: 0; background: var(--c2); }
 @media (max-width: 900px) { .brand-text { display: none; } }
+@media (max-width: 600px) {
+  .site-nav .wrap { gap: 8px; height: 58px; }
+  /* soft fade at both ends hints that the chapter list scrolls sideways */
+  .chap-links {
+    padding-inline: 6px;
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 26px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 10px, #000 calc(100% - 26px), transparent);
+  }
+}
 
 /* ---------- Hero ---------- */
 .hero { padding-block: 64px 40px; }
@@ -178,9 +184,17 @@ mark, .hl { background: linear-gradient(transparent 58%, rgba(201, 138, 0, .28) 
   display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
   transition: background .15s, border-color .15s;
 }
-.btn:hover { border-color: var(--ink-2); background: var(--paper); }
 .btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-.btn.primary:hover { background: #40372f; }
+@media (hover: hover) {
+  .chap-links a:hover { background: var(--paper-2); }
+  .chap-links a.active:hover { background: var(--ink); }
+  .btn:hover { border-color: var(--ink-2); background: var(--paper); }
+  .btn.primary:hover { background: #40372f; }
+  .quiz .opt:hover { border-color: var(--ink-2); }
+  .copy:hover { color: var(--ink); border-color: var(--ink-2); }
+  .cheat:hover, .pager a:hover { border-color: var(--ink-2); transform: translateY(-1px); }
+  .chap-card:hover { border-color: var(--ink-2); transform: translateY(-2px); box-shadow: var(--shadow); }
+}
 .btn:disabled { opacity: .45; cursor: default; }
 .seg { display: inline-flex; border: 1px solid var(--rule-2); border-radius: 999px; padding: 3px; background: var(--paper); }
 .seg button { border: 0; background: none; font: 500 13px var(--sans); padding: 5px 12px; border-radius: 999px; color: var(--ink-2); cursor: pointer; }
@@ -205,6 +219,7 @@ svg.chart { display: block; width: 100%; height: auto; overflow: visible; font-f
 .chart .lbl { fill: var(--ink-2); font-size: 12px; }
 .chart .lbl-sm { fill: var(--muted); font-size: 10.5px; }
 .chart .lbl-strong { fill: var(--ink); font-size: 13px; font-weight: 600; }
+.chart .halo { paint-order: stroke; stroke: var(--card); stroke-width: 4px; stroke-linejoin: round; }   /* keeps a label readable over lines and bars */
 .chart .drag { cursor: ew-resize; }
 .chart .dragy { cursor: ns-resize; }
 .chart .node rect { fill: var(--card); stroke: var(--rule-2); }
@@ -244,7 +259,7 @@ svg.chart { display: block; width: 100%; height: auto; overflow: visible; font-f
 @media (max-width: 760px) { .flow { grid-template-columns: 1fr 1fr; } .flow .step::after { display: none; } }
 
 /* small idea cards (no arrows) */
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 14px; }
 .tile { background: var(--card); border: 1px solid var(--rule); border-radius: 14px; padding: 16px; }
 .tile .ic { display: block; font-size: 22px; margin-bottom: 6px; }
 .tile b { display: block; font-size: 15.5px; margin-bottom: 4px; }
@@ -252,7 +267,15 @@ svg.chart { display: block; width: 100%; height: auto; overflow: visible; font-f
 
 /* ---------- Under the hood (tabs) ---------- */
 .hood { background: var(--card); border: 1px solid var(--rule); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow); }
-.tabs { display: flex; gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--rule); background: var(--paper-2); overflow-x: auto; }
+.tabs {
+  display: flex; gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--rule); overflow-x: auto;
+  background:   /* same edge shadows as wide tables: a hint that more tabs sit off to the side */
+    linear-gradient(to right, var(--paper-2) 40%, rgba(244, 236, 223, 0)) left center / 32px 100% no-repeat local,
+    linear-gradient(to left, var(--paper-2) 40%, rgba(244, 236, 223, 0)) right center / 32px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(42, 37, 32, .16), transparent) left center / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(42, 37, 32, .16), transparent) right center / 12px 100% no-repeat scroll,
+    var(--paper-2);
+}
 .tab {
   appearance: none; border: 0; background: none; font: 500 14px var(--sans); padding: 10px 16px;
   color: var(--ink-2); border-radius: 10px 10px 0 0; cursor: pointer; white-space: nowrap;
@@ -263,7 +286,15 @@ svg.chart { display: block; width: 100%; height: auto; overflow: visible; font-f
 @media (max-width: 600px) { .tab-panel { padding: 18px 16px; } }
 .tab-panel h4 { font: 600 15px var(--sans); margin: 22px 0 6px; }
 .tab-panel h4:first-child { margin-top: 0; }
-.eq { margin: 6px 0 10px; overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+.eq {
+  margin: 6px 0 10px; overflow-x: auto; overflow-y: hidden; padding: 4px 0;
+  background:   /* long equations scroll sideways on phones: same edge shadows as the tables */
+    linear-gradient(to right, var(--card) 40%, rgba(255, 252, 246, 0)) left center / 32px 100% no-repeat local,
+    linear-gradient(to left, var(--card) 40%, rgba(255, 252, 246, 0)) right center / 32px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(42, 37, 32, .16), transparent) left center / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(42, 37, 32, .16), transparent) right center / 12px 100% no-repeat scroll,
+    var(--card);
+}
 .say {
   font-size: 15px; color: var(--ink-2); background: var(--paper); border-left: 3px solid var(--c4);
   padding: 8px 14px; border-radius: 0 8px 8px 0; margin: 0 0 18px;
@@ -288,7 +319,6 @@ pre.pseudo u { text-decoration: none; color: var(--c1); }
   position: absolute; top: 10px; right: 12px; font: 500 12px var(--sans); padding: 4px 10px;
   border-radius: 999px; border: 1px solid var(--rule-2); background: var(--card); color: var(--ink-2); cursor: pointer;
 }
-.copy:hover { color: var(--ink); border-color: var(--ink-2); }
 code:not(pre code) { font: 0.88em var(--mono); background: var(--paper-2); padding: 1px 6px; border-radius: 5px; }
 .token.comment, .token.prolog { color: #978b7b; font-style: italic; }
 .token.keyword { color: #9c3d1c; font-weight: 500; }
@@ -324,7 +354,6 @@ code:not(pre code) { font: 0.88em var(--mono); background: var(--paper-2); paddi
   text-align: left; font: 15px var(--sans); padding: 10px 14px; border: 1px solid var(--rule-2);
   background: var(--paper); border-radius: 10px; cursor: pointer; color: var(--ink);
 }
-.quiz .opt:hover { border-color: var(--ink-2); }
 .quiz.done .opt { cursor: default; }
 .quiz .opt.right { border-color: var(--good); background: rgba(31, 122, 77, .09); }
 .quiz .opt.right::after { content: "  ✓"; color: var(--good); font-weight: 600; }
@@ -335,15 +364,24 @@ code:not(pre code) { font: 0.88em var(--mono); background: var(--paper-2); paddi
 .quiz .again { margin-left: 8px; font-size: 13px; background: none; border: 0; color: var(--link); cursor: pointer; text-decoration: underline; }
 
 /* ---------- Glossary term tooltip ---------- */
-.term { border-bottom: 1.5px dotted var(--c2); cursor: help; position: relative; }
-.term:hover::after, .term:focus::after {
-  content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
-  width: max-content; max-width: 260px; background: var(--ink); color: var(--paper);
-  font: 400 13.5px/1.45 var(--sans); padding: 8px 11px; border-radius: 8px; z-index: 30; white-space: normal; pointer-events: none;
+.term { border-bottom: 1.5px dotted var(--c2); cursor: help; }
+.term-tip {
+  position: fixed; z-index: 120; max-width: min(280px, calc(100vw - 16px)); pointer-events: none;
+  background: var(--ink); color: var(--paper); font: 400 13.5px/1.45 var(--sans);
+  padding: 8px 11px; border-radius: 8px; box-shadow: var(--shadow);
 }
 
 /* ---------- Tables ---------- */
-.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: var(--r); background: var(--card); }
+/* Soft shadows at an edge only while there is more to scroll to (the covers move with the content). */
+.table-wrap {
+  overflow-x: auto; border: 1px solid var(--rule); border-radius: var(--r);
+  background:
+    linear-gradient(to right, var(--card) 40%, rgba(255, 252, 246, 0)) left center / 32px 100% no-repeat local,
+    linear-gradient(to left, var(--card) 40%, rgba(255, 252, 246, 0)) right center / 32px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(42, 37, 32, .16), transparent) left center / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(42, 37, 32, .16), transparent) right center / 12px 100% no-repeat scroll,
+    var(--card);
+}
 table.t { width: 100%; border-collapse: collapse; font-size: 15px; }
 table.t th, table.t td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
 table.t th { font: 600 13px var(--sans); color: var(--ink-2); background: var(--paper-2); white-space: nowrap; }
@@ -382,13 +420,12 @@ table.qt tr.active td { background: var(--c4-wash); font-weight: 600; }
 .pick-q { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--rule); font-size: 15.5px; }
 .pick-q:last-child { border-bottom: 0; }
 .sw-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
-.cheats { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.cheats { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 14px; }
 .cheat {
   display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: start;
   background: var(--card); border: 1px solid var(--rule); border-radius: 14px; padding: 14px 16px;
   text-decoration: none; color: var(--ink); transition: border-color .15s, transform .15s;
 }
-.cheat:hover { border-color: var(--ink-2); transform: translateY(-1px); }
 .cheat b { display: block; font-size: 15.5px; }
 .cheat span { display: block; font-size: 14px; color: var(--ink-2); line-height: 1.45; margin-top: 2px; }
 .cheat .f { display: inline-block; font: 12.5px var(--mono); color: var(--ink); margin-top: 8px; background: var(--paper); padding: 4px 8px; border-radius: 6px; }
@@ -399,7 +436,6 @@ table.qt tr.active td { background: var(--c4-wash); font-weight: 600; }
   display: block; padding: 18px 22px; border: 1px solid var(--rule); border-radius: var(--r);
   background: var(--card); text-decoration: none; color: var(--ink); transition: border-color .15s, transform .15s;
 }
-.pager a:hover { border-color: var(--ink-2); transform: translateY(-1px); }
 .pager .dir { font: 500 12px var(--mono); color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
 .pager .t { font: 600 21px var(--serif); margin-top: 2px; }
 .pager .next { text-align: right; grid-column: 2; }
@@ -417,13 +453,12 @@ table.qt tr.active td { background: var(--c4-wash); font-weight: 600; }
 .meter i { display: block; height: 100%; width: 0; background: var(--c1); border-radius: 6px; }
 @media (max-width: 900px) { .home-hero { grid-template-columns: 1fr; gap: 30px; padding-block: 40px 30px; } }
 
-.chapter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 16px; }
+.chapter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(310px, 100%), 1fr)); gap: 16px; }
 .chap-card {
   position: relative; display: grid; grid-template-columns: 72px 1fr; gap: 16px; align-items: start;
   padding: 18px 20px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--card);
   text-decoration: none; color: var(--ink); transition: border-color .15s, transform .15s, box-shadow .15s;
 }
-.chap-card:hover { border-color: var(--ink-2); transform: translateY(-2px); box-shadow: var(--shadow); }
 .chap-card .glyph { width: 72px; height: 56px; background: var(--paper); border-radius: 12px; display: grid; place-items: center; }
 .chap-card .glyph svg { width: 60px; height: 44px; }
 .chap-card .no { font: 500 11.5px var(--mono); color: var(--muted); letter-spacing: .08em; }
@@ -450,6 +485,69 @@ table.qt tr.active td { background: var(--c4-wash); font-weight: 600; }
   .timeline::before { left: 7px; right: auto; top: 6px; bottom: 6px; width: 2px; height: auto; }
   .timeline .ev { text-align: left; padding-top: 0; padding-bottom: 14px; }
   .timeline .ev::before { left: -30px; margin-left: 0; top: 3px; }
+}
+
+/* ---------- Fingers: big tap targets, no double-tap zoom delay, press feedback ---------- */
+html { -webkit-tap-highlight-color: rgba(42, 37, 32, .08); }
+a, button, input, label, .term { touch-action: manipulation; }
+.btn:active, .seg button:active, .quiz .opt:active, .tab:active, .copy:active { transform: scale(.97); }
+@media (pointer: coarse) {
+  .brand { min-height: 44px; min-width: 44px; }
+  .chap-links a { min-height: 44px; }
+  .btn { min-height: 44px; padding: 10px 18px; justify-content: center; }
+  .seg { padding: 2px; }
+  .seg button { min-height: 44px; min-width: 56px; padding: 8px 14px; }
+  .tab { min-height: 46px; }
+  .quiz .opt { min-height: 48px; padding: 12px 16px; }
+  .quiz .again { min-height: 44px; padding: 0 10px; }
+  .copy { min-height: 44px; min-width: 64px; top: 6px; right: 6px; }
+  input[type=range] { height: 44px; }
+  input[type=range]::-webkit-slider-runnable-track { height: 6px; }
+  input[type=range]::-webkit-slider-thumb { width: 28px; height: 28px; margin-top: -11px; }
+  input[type=range]::-moz-range-thumb { width: 24px; height: 24px; }
+}
+
+/* ---------- Phones: one column, full-width controls, readable charts ---------- */
+@media (max-width: 600px) {
+  .hero { padding-block: 36px 26px; }
+  .hero h1 { font-size: clamp(34px, 9.6vw, 44px); }
+  .home-hero h1 { font-size: clamp(40px, 11vw, 48px); }
+  .sec { padding-block: 34px; }
+  .sec-head { margin-bottom: 18px; }
+  .lede { font-size: 17px; }
+  .metaphor .art { margin-inline: auto; }
+  .viz { padding: 16px 14px; }
+  .controls { gap: 10px; }
+  .controls > .seg, .controls > .btn-row, .controls > .ctrl { width: 100%; }
+  .seg { display: flex; }
+  .seg button { flex: 1 1 auto; line-height: 1.25; padding-inline: 10px; }
+  .stats:has(> .stat:nth-child(4)) { grid-template-columns: 1fr 1fr; }
+  table.t { font-size: 14.5px; }
+  table.t th, table.t td { padding: 10px 11px; }
+  table.qt th, table.qt td { padding: 8px 5px; }
+  /* wide tables scroll sideways: keep the row names in view */
+  table.t:not(.qt) td:first-child, table.t:not(.qt) th:first-child { position: sticky; left: 0; z-index: 1; }
+  table.t:not(.qt) td:first-child { background: var(--card); box-shadow: inset -1px 0 0 var(--rule); }
+  .eq .katex { font-size: 1.04em; }
+  .btn-row .btn { flex: 1 1 auto; }
+  .ctrl input[type=range] { flex: 1; width: auto; min-width: 0; }
+  .ctrl .seg { margin-left: auto; flex: none; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); }
+  .stat { min-width: 0; }
+  .pick-q { flex-direction: column; align-items: stretch; gap: 8px; }
+  .metaphor .label, .chap-card .no, .chap-card .tag, .badge { font-size: 12px; }
+  .pager { gap: 10px; }
+  .pager a { padding: 16px; }
+  .pager .t { font-size: 19px; }
+  pre.code, pre.pseudo { font-size: 12.5px; padding: 14px; max-height: 70vh; }
+  pre.pseudo { font-size: 13px; }
+  .hero-card { padding: 16px 14px 14px; }
+  /* charts are drawn about as wide as the screen here, so these sizes are close to real pixels */
+  .chart .axis text { font-size: 11.5px; }
+  .chart .axis-title { font-size: 12px; }
+  .chart .lbl { font-size: 12.5px; }
+  .chart .lbl-sm { font-size: 11.5px; }
+  .chart .lbl-strong { font-size: 13.5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

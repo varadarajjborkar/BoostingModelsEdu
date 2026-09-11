@@ -19,9 +19,9 @@
     const F0 = -1.2, LR = 0.25, MAXS = 12;
     let gd, nw, trailG, trailN, steps;
 
-    const W = 520, H = 330;
+    const W = V.pick(520, 340), H = V.pick(330, 260);
     const s = V.svg(root.querySelector('.plot'), W, H, 'A loss bowl with two walkers heading to the bottom');
-    const f = V.frame({ W, H, m: { t: 16, r: 16, b: 38, l: 42 }, x: [-2, 4], y: [2, 6.6] });
+    const f = V.frame({ W, H, m: { t: 16, r: 16, b: 38, l: 42 }, x: [-2, 4], y: [1.5, 6.6] });
     const defs = V.el('defs', {}, s);
     const cp = V.el('clipPath', { id: 'nt-clip' }, defs);
     V.el('rect', { x: f.left, y: f.top, width: f.iw, height: f.ih }, cp);
@@ -29,7 +29,7 @@
     const xs = Array.from({ length: 241 }, (_, i) => -2 + i / 40);
     V.el('path', { d: V.line(xs.map((x) => [f.sx(x), f.sy(L(x))])), fill: 'none', stroke: 'var(--ink-2)', 'stroke-width': 2.5 }, s);
     V.el('line', { x1: f.sx(BEST), x2: f.sx(BEST), y1: f.sy(L(BEST)) + 6, y2: f.bottom, stroke: 'var(--good)', 'stroke-width': 1.2 }, s);
-    V.text(s, f.sx(BEST), f.bottom - 6, 'bottom', { class: 'lbl-sm', 'text-anchor': 'middle' });
+    V.text(s, f.sx(BEST) + 5, f.bottom - 6, 'bottom', { class: 'lbl-sm' });
     const dyn = V.el('g', {}, s);
 
     const lamS = V.slider('nt-lam', () => reset(), (v) => Number(v).toFixed(1));
@@ -79,15 +79,15 @@
     const sim = (a, lam) => sum(a) ** 2 / (a.length + lam);
     const gainAt = (c, lam) => sim(r.slice(0, c), lam) + sim(r.slice(c), lam) - sim(r, lam);
 
-    const W = 460;
+    const W = V.pick(460, 340);
     const sp = V.svg('#sc-plot', W, 230, 'Eight dots with leftover bars and a cut line');
-    sp.style.touchAction = 'none';
     const fp = V.frame({ W, H: 230, m: { t: 12, r: 12, b: 34, l: 34 }, x: [0.4, 8.6], y: [-4.6, 4.6] });
     V.axes(sp, fp, { xVals: xs, yVals: [-4, -2, 0, 2, 4], xLabel: 'feature value' });
     V.el('line', { x1: fp.left, x2: fp.right, y1: fp.sy(0), y2: fp.sy(0), stroke: 'var(--ink-2)', 'stroke-width': 1 }, sp);
     const barG = V.el('g', {}, sp);
     const cutLine = V.el('line', { y1: fp.top, y2: fp.bottom, stroke: 'var(--ink)', 'stroke-width': 2 }, sp);
     const cutKnob = V.el('circle', { cy: fp.top, r: 7, fill: 'var(--ink)', stroke: 'var(--card)', 'stroke-width': 2 }, sp);
+    const cutHit = V.el('circle', { cy: fp.top, r: 22, fill: 'transparent', 'data-grip': '' }, sp);   // finger-sized handle
 
     const sg = V.svg('#sc-gains', W, 150, 'Gain for each of the seven possible cuts');
     const st = V.svg('#sc-tree', W, 250, 'The tree made by this cut');
@@ -104,7 +104,7 @@
         V.text(barG, fp.sx(x), r[i] >= 0 ? y1 - 5 : y1 + 13, r[i].toFixed(1), { class: 'lbl-sm', 'text-anchor': 'middle' });
       });
       const cx = fp.sx(k + 0.5);
-      cutLine.setAttribute('x1', cx); cutLine.setAttribute('x2', cx); cutKnob.setAttribute('cx', cx);
+      cutLine.setAttribute('x1', cx); cutLine.setAttribute('x2', cx); cutKnob.setAttribute('cx', cx); cutHit.setAttribute('cx', cx);
 
       // gain bars for every cut
       V.clear(sg);
@@ -138,7 +138,7 @@
           { tone: 'a', faded: !kept, lines: [`left: ${Lr.length} dots`, `sum ${f2(sum(Lr))}`, `similarity ${f2(sL)}`, `output ${f2(sum(Lr) / (Lr.length + lam))}`] },
           { tone: 'b', faded: !kept, lines: [`right: ${Rr.length} dots`, `sum ${f2(sum(Rr))}`, `similarity ${f2(sR)}`, `output ${f2(sum(Rr) / (Rr.length + lam))}`] },
         ],
-      }, { W, H: 250, boxW: 176, boxH: 80, font: 12 });
+      }, { W, H: 250, boxW: V.pick(176, 160), boxH: 80, font: 12 });
 
       document.getElementById('sc-say').innerHTML =
         `Gain = ${f2(sL)} + ${f2(sR)} − ${f2(sP)} = <b>${f2(gain)}</b>. ` +
@@ -169,10 +169,12 @@
     const leftover = d.y.map((v) => v - avg);
     const g = leftover.map((v) => -v), h = leftover.map(() => 1);
 
-    const W = 520;
-    const sTree = V.svg('#pr-tree', W, 300, 'A depth-3 XGBoost tree; pruned parts are faded');
-    const sFit = V.svg('#pr-fit', W, 250, 'Leftovers and the tree output as a step line');
-    const ff = V.frame({ W, H: 250, m: { t: 12, r: 12, b: 30, l: 36 }, x: [0, 10], y: [-3.4, 3.4] });
+    const W = V.pick(520, 340), HF = V.pick(250, 220);
+    // Phones get a sideways tree (root on the left) so the 8 leaves have room.
+    const treeOpts = V.pick({ W, H: 300, boxW: 60, boxH: 36, font: 10.5 }, { W, H: 360, boxW: 78, boxH: 34, font: 11, horizontal: true });
+    const sTree = V.svg('#pr-tree', W, treeOpts.H, 'A depth-3 XGBoost tree; pruned parts are faded');
+    const sFit = V.svg('#pr-fit', W, HF, 'Leftovers and the tree output as a step line');
+    const ff = V.frame({ W, H: HF, m: { t: 12, r: 12, b: 30, l: 36 }, x: [0, 10], y: [-3.4, 3.4] });
     V.axes(sFit, ff, { xTicks: 5, yTicks: 4, xLabel: 'feature value' });
     V.el('line', { x1: ff.left, x2: ff.right, y1: ff.sy(0), y2: ff.sy(0), stroke: 'var(--ink-2)', 'stroke-width': 1 }, sFit);
     d.x.forEach((x, i) => V.el('circle', { cx: ff.sx(x), cy: ff.sy(leftover[i]), r: 4, fill: 'var(--ink-2)', 'fill-opacity': 0.55 }, sFit));
@@ -212,7 +214,7 @@
           children: [toDisp(n.left, faded || n.cut), toDisp(n.right, faded || n.cut)],
         };
       }
-      drawTree(sTree, toDisp(tree, false), { W, H: 300, boxW: 60, boxH: 36, font: 10.5 });
+      drawTree(sTree, toDisp(tree, false), treeOpts);
       fullPath.setAttribute('d', V.line(xs.map((x) => [ff.sx(x), ff.sy(full(tree, x))])));
       fitPath.setAttribute('d', V.line(xs.map((x) => [ff.sx(x), ff.sy(eff(tree, x))])));
       document.getElementById('pr-leaves').textContent = leaves;
@@ -230,22 +232,22 @@
     const LAM = 1, CUT = 4;
     const sim = (a) => sum(a) ** 2 / (a.length + LAM);
 
-    const W = 900, H = 170;
+    const W = V.pick(900, 340), H = V.pick(170, 190);
     const s = V.svg('#ms-line', W, H, 'Known dots on a number line and three dots with missing values');
     const f = V.frame({ W, H, m: { t: 12, r: 12, b: 30, l: 34 }, x: [0.3, 10.2], y: [-3.6, 3.6] });
     V.axes(s, f, { xVals: [1, 2, 3, 4, 5, 6, 7], yVals: [-3, 0, 3] });
     V.el('line', { x1: f.left, x2: f.sx(7.8), y1: f.sy(0), y2: f.sy(0), stroke: 'var(--ink-2)', 'stroke-width': 1 }, s);
-    const bar = (x, v, col, w = 18) => {
+    const bar = (x, v, col, w = V.pick(18, 13)) => {
       const y0 = f.sy(0), y1 = f.sy(v);
       V.el('rect', { x: f.sx(x) - w / 2, y: Math.min(y0, y1), width: w, height: Math.abs(y1 - y0), rx: 3, fill: col }, s);
     };
     known.forEach(([x, v]) => bar(x, v, x <= CUT ? 'var(--c1)' : 'var(--c2)'));
     V.el('line', { x1: f.sx(CUT), x2: f.sx(CUT), y1: f.top, y2: f.bottom, stroke: 'var(--ink)', 'stroke-width': 2 }, s);
-    V.text(s, f.sx(CUT) + 6, f.top + 12, 'cut: x ≤ 4 ?', { class: 'lbl' });
+    V.text(s, f.sx(CUT) - 6, f.top + 12, 'cut: x ≤ 4 ?', { class: 'lbl halo', 'text-anchor': 'end' });   // left side is empty up top
     V.el('rect', { x: f.sx(8.1), y: f.top, width: f.sx(10.2) - f.sx(8.1), height: f.ih, rx: 10, fill: 'var(--c4-wash)' }, s);
-    V.text(s, f.sx(9.15), f.bottom - 8, 'missing (?)', { class: 'lbl', 'text-anchor': 'middle' });
+    V.text(s, f.sx(9.15), f.bottom - 8, V.pick('missing (?)', 'missing'), { class: 'lbl', 'text-anchor': 'middle' });
     V.el('line', { x1: f.sx(8.2), x2: f.sx(10.1), y1: f.sy(0), y2: f.sy(0), stroke: 'var(--ink-2)', 'stroke-width': 1 }, s);
-    missing.forEach((v, i) => bar(8.6 + i * 0.55, v, 'var(--c4)', 16));
+    missing.forEach((v, i) => bar(8.6 + i * 0.55, v, 'var(--c4)', V.pick(16, 11)));
 
     const leftK = known.filter(([x]) => x <= CUT).map((p) => p[1]);
     const rightK = known.filter(([x]) => x > CUT).map((p) => p[1]);
@@ -255,11 +257,12 @@
       { side: 'RIGHT', L: leftK, R: [...rightK, ...missing], host: '#ms-right' },
     ].map((o) => ({ ...o, gain: sim(o.L) + sim(o.R) - sim(all) }));
     const win = options[0].gain > options[1].gain ? 0 : 1;
+    const TW = V.pick(440, 340), TH = V.pick(200, 190);
 
     options.forEach((o, i) => {
       const host = document.querySelector(o.host);
       host.innerHTML = `<div class="panel-title">Send missing ${o.side} ${i === win ? '<span class="badge">chosen ✓</span>' : ''}</div>`;
-      const sv = V.svg(host, 440, 200, `Tree when missing values go ${o.side.toLowerCase()}`);
+      const sv = V.svg(host, TW, TH, `Tree when missing values go ${o.side.toLowerCase()}`);
       if (i !== win) sv.style.opacity = 0.6;
       drawTree(sv, {
         tone: 'split', lines: ['x ≤ 4 ?', `? goes ${o.side.toLowerCase()}`, `gain ${f2(o.gain)}`],
@@ -267,7 +270,7 @@
           { tone: 'a', lines: [`left: ${o.L.length} dots`, `sum ${f2(sum(o.L))}`, `similarity ${f2(sim(o.L))}`] },
           { tone: 'b', lines: [`right: ${o.R.length} dots`, `sum ${f2(sum(o.R))}`, `similarity ${f2(sim(o.R))}`] },
         ],
-      }, { W: 440, H: 200, boxW: 150, boxH: 66, font: 11.5 });
+      }, { W: TW, H: TH, boxW: 150, boxH: 66, font: 11.5 });
     });
     document.getElementById('ms-say').innerHTML =
       `Sending the ? dots <b>${options[win].side.toLowerCase()}</b> gives gain <b>${f2(options[win].gain)}</b>, versus ${f2(options[1 - win].gain)} the other way. ` +

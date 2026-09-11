@@ -1,19 +1,19 @@
 /* Shared site behaviour: nav, pager, footer, tabs, quizzes, math, copy buttons. */
 (function () {
   const CHAPTERS = [
-    { n: 0, slug: '00-warmup', title: 'Warm-up', sub: 'Trees & the team idea',
+    { slug: '00-warmup', title: 'Warm-up', sub: 'Trees & the team idea',
       idea: 'One tiny tree is weak. A team of tiny trees is strong.' },
-    { n: 1, slug: '01-adaboost', title: 'AdaBoost', sub: 'Mistakes get louder',
+    { slug: '01-adaboost', title: 'AdaBoost', sub: 'Mistakes get louder',
       idea: 'Every round, the points we got wrong get heavier.' },
-    { n: 2, slug: '02-gradient-boosting', title: 'Gradient Boosting', sub: 'Fix what is left',
+    { slug: '02-gradient-boosting', title: 'Gradient Boosting', sub: 'Fix what is left',
       idea: 'Each new tree fixes the leftover error of the team so far.' },
-    { n: 3, slug: '03-xgboost', title: 'XGBoost', sub: 'Boosting with brakes',
+    { slug: '03-xgboost', title: 'XGBoost', sub: 'Boosting with brakes',
       idea: 'Knows the slope and the bend, and pays a fee for every branch.' },
-    { n: 4, slug: '04-lightgbm', title: 'LightGBM', sub: 'Built for speed',
+    { slug: '04-lightgbm', title: 'LightGBM', sub: 'Built for speed',
       idea: 'Put numbers into buckets. Grow the most useful leaf first.' },
-    { n: 5, slug: '05-catboost', title: 'CatBoost', sub: 'Categories, no cheating',
+    { slug: '05-catboost', title: 'CatBoost', sub: 'Categories, no cheating',
       idea: 'Turn words into numbers without peeking at the answer.' },
-    { n: 6, slug: '06-faceoff', title: 'Face-off', sub: 'Which one to pick?',
+    { slug: '06-faceoff', title: 'Face-off', sub: 'Which one to pick?',
       idea: 'Same idea, three personalities. Pick the right one fast.' },
   ];
 
@@ -48,12 +48,11 @@
       '<span class="brand-text">Boosting, Visually</span></a>' +
       '<nav class="chap-links" aria-label="Chapters">' +
       CHAPTERS.map((c) =>
-        `<a href="${href(c)}" class="${c.slug === page ? 'active' : ''}">` +
-        `<span class="n">${String(c.n).padStart(2, '0')}</span>${c.title}</a>`).join('') +
+        `<a href="${href(c)}"${c.slug === page ? ' class="active" aria-current="page"' : ''}>${c.title}</a>`).join('') +
       '</nav></div><div class="progress-bar"></div>';
     const links = host.querySelector('.chap-links');
     const act = host.querySelector('a.active');
-    if (act) links.scrollLeft = act.offsetLeft - 60;
+    if (act) links.scrollLeft = act.offsetLeft - links.offsetLeft - (links.clientWidth - act.offsetWidth) / 2;
     const bar = host.querySelector('.progress-bar');
     const onScroll = () => {
       const h = document.documentElement;
@@ -150,6 +149,42 @@
     });
   }
 
+  // Glossary words: tap, hover or focus shows a small bubble that always stays on screen.
+  function initTerms() {
+    const terms = document.querySelectorAll('.term[data-tip]');
+    if (!terms.length) return;
+    const bub = document.createElement('div');
+    bub.className = 'term-tip';
+    bub.id = 'term-tip';
+    bub.setAttribute('role', 'tooltip');
+    bub.hidden = true;
+    document.body.appendChild(bub);
+    let cur = null;
+    const hide = () => { bub.hidden = true; cur?.removeAttribute('aria-describedby'); cur = null; };
+    const show = (t) => {
+      if (cur && cur !== t) cur.removeAttribute('aria-describedby');
+      cur = t;
+      bub.textContent = t.dataset.tip;
+      bub.hidden = false;
+      t.setAttribute('aria-describedby', 'term-tip');
+      const r = t.getBoundingClientRect(), b = bub.getBoundingClientRect();
+      const above = r.top - b.height - 8;
+      bub.style.left = Math.min(Math.max(8, r.left + r.width / 2 - b.width / 2), innerWidth - b.width - 8) + 'px';
+      bub.style.top = (above > 8 ? above : r.bottom + 8) + 'px';
+    };
+    terms.forEach((t) => {
+      if (!t.hasAttribute('tabindex')) t.tabIndex = 0;
+      t.addEventListener('mouseenter', () => show(t));
+      t.addEventListener('mouseleave', hide);
+      t.addEventListener('focus', () => show(t));
+      t.addEventListener('blur', hide);
+      t.addEventListener('click', (e) => { e.stopPropagation(); show(t); });
+    });
+    document.addEventListener('click', hide);            // a tap anywhere else closes it
+    addEventListener('scroll', hide, { passive: true });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+  }
+
   function renderMath() {
     if (typeof window.renderMathInElement !== 'function') return;
     window.renderMathInElement(document.body, {
@@ -178,6 +213,7 @@
   initTabs();
   initQuiz();
   initCopy();
+  initTerms();
   renderMath();
   markVisited();
 })();

@@ -10,9 +10,8 @@
     const { X, y } = V.blobs(60, 21, 0.15);
     let feat = 0, thr = 0.5, scanTimer = null;
 
-    const W = 520, H = 420;
+    const W = V.pick(520, 340), H = V.pick(420, 300);
     const s = V.svg(root.querySelector('.plot'), W, H, 'Blue and orange dots with a line you can drag to split them');
-    s.style.touchAction = 'none';
     const f = V.frame({ W, H, m: { t: 20, r: 16, b: 40, l: 40 }, x: [0, 1], y: [0, 1] });
     const sideG = V.el('g', {}, s);
     const sideA = V.el('rect', {}, sideG), sideB = V.el('rect', {}, sideG);
@@ -25,6 +24,9 @@
     const knob = V.el('circle', { r: 8, fill: 'var(--ink)', stroke: 'var(--card)', 'stroke-width': 2 }, s);
     const tagYes = V.text(s, 0, 0, 'YES side', { class: 'lbl-sm' });
     const tagNo = V.text(s, 0, 0, 'NO side', { class: 'lbl-sm' });
+    // Invisible, finger-sized handles on top of the line and its knob.
+    const lnHit = V.el('line', { stroke: 'transparent', 'stroke-width': 30 }, s);
+    const knobHit = V.el('circle', { r: 22, fill: 'transparent', 'data-grip': '' }, s);
 
     function counts(fe, t) {
       let lp = 0, ln_ = 0, rp = 0, rn = 0;
@@ -105,6 +107,9 @@
         tagYes.setAttribute('x', f.left + 6); tagYes.setAttribute('y', f.bottom - 8); tagYes.setAttribute('text-anchor', 'start');
         tagNo.setAttribute('x', f.left + 6); tagNo.setAttribute('y', f.top + 14); tagNo.setAttribute('text-anchor', 'start');
       }
+      ['x1', 'x2', 'y1', 'y2'].forEach((k) => lnHit.setAttribute(k, ln.getAttribute(k)));
+      knobHit.setAttribute('cx', knob.getAttribute('cx')); knobHit.setAttribute('cy', knob.getAttribute('cy'));
+      lnHit.toggleAttribute('data-grip', feat !== 0);   // a flat line can be grabbed anywhere along it
       sideA.setAttribute('fill', fa); sideA.setAttribute('fill-opacity', oa);
       sideB.setAttribute('fill', fb); sideB.setAttribute('fill-opacity', ob);
       document.getElementById('sp-q').textContent = `Is feature ${feat + 1} ≤ ${thr.toFixed(2)}?`;
@@ -120,7 +125,7 @@
       stopScan();
       thr = V.clamp(feat === 0 ? f.sx.inv(q.x) : f.sy.inv(q.y), 0.02, 0.98);
       update();
-    });
+    }, () => (feat === 0 ? 'x' : 'y'));
     document.getElementById('sp-scan').addEventListener('click', () => {
       stopScan();
       let t = 0.02;
@@ -153,7 +158,7 @@
     }
     const bestD = models.reduce((a, m) => (m.te > a.te ? m : a)).d;
 
-    const W = 520, H = 400;
+    const W = V.pick(520, 340), H = V.pick(400, 280);
     const s = V.svg(root.querySelector('.plot'), W, H, 'Two moons of dots with the tree answer shaded behind them');
     const ext = (k) => [Math.min(...tr.X.map((p) => p[k])) - 0.04, Math.max(...tr.X.map((p) => p[k])) + 0.04];
     const f = V.frame({ W, H, m: { t: 14, r: 14, b: 34, l: 38 }, x: ext(0), y: ext(1) });
@@ -214,17 +219,22 @@
     const total = (c) => ys.reduce((a, v) => a + (v - c) ** 2, 0);
     let c = 2.2, anim = null;
 
-    const W = 560, H = 360;
+    const W = V.pick(560, 340), H = V.pick(360, 280);
     const s = V.svg(root.querySelector('.plot'), W, H, 'Seven dots, a flat guess line, and a square for each mistake');
-    s.style.touchAction = 'none';
     const f = V.frame({ W, H, m: { t: 18, r: 16, b: 34, l: 40 }, x: [0.4, 8.4], y: [0, 8] });
     V.axes(s, f, { xVals: [1, 2, 3, 4, 5, 6, 7], fmtX: (v) => '#' + v, yTicks: 4, yLabel: 'value' });
-    const sqG = V.el('g', {}, s), resG = V.el('g', {}, s);
+    // Big squares near the right edge would spill out of the card, so trim them at the chart edge.
+    const clip = V.el('clipPath', { id: 'ls-clip' }, V.el('defs', {}, s));
+    V.el('rect', { x: f.left, y: f.top, width: W - f.left, height: f.ih }, clip);
+    const sqG = V.el('g', { 'clip-path': 'url(#ls-clip)' }, s), resG = V.el('g', {}, s);
     const guess = V.el('line', { stroke: 'var(--ink)', 'stroke-width': 2.5, x1: f.left, x2: f.right }, s);
     const knob = V.el('circle', { r: 8, cx: f.left, fill: 'var(--ink)', stroke: 'var(--card)', 'stroke-width': 2, class: 'dragy' }, s);
-    const gl = V.text(s, f.right, 0, 'your guess', { class: 'lbl', 'text-anchor': 'end' });
+    const gl = V.text(s, f.right, 0, 'your guess', { class: 'lbl halo', 'text-anchor': 'end' });
     const ptsG = V.el('g', {}, s);
     ys.forEach((v, i) => V.el('circle', { cx: f.sx(i + 1), cy: f.sy(v), r: 6, fill: 'var(--ink-2)', stroke: 'var(--card)', 'stroke-width': 2 }, ptsG));
+    // Finger-sized handles: grab the guess line anywhere along it, or its knob.
+    const guessHit = V.el('line', { x1: f.left, x2: f.right, stroke: 'transparent', 'stroke-width': 32, 'data-grip': '' }, s);
+    const knobHit = V.el('circle', { cx: f.left, r: 22, fill: 'transparent', 'data-grip': '' }, s);
 
     // the bowl
     const bw = 320, bh = 200;
@@ -252,6 +262,7 @@
       });
       guess.setAttribute('y1', gy); guess.setAttribute('y2', gy);
       knob.setAttribute('cy', gy);
+      guessHit.setAttribute('y1', gy); guessHit.setAttribute('y2', gy); knobHit.setAttribute('cy', gy);
       gl.setAttribute('y', gy - 8);
       bDot.setAttribute('cx', bf.sx(c)); bDot.setAttribute('cy', bf.sy(total(c)));
       document.getElementById('ls-c').textContent = c.toFixed(2);
@@ -278,11 +289,12 @@
   // ===================================================================
   (function teamViz() {
     const root = document.getElementById('team-viz');
-    const W = 460, H = 320;
+    const W = V.pick(460, 340), H = 320, mid = W / 2;
     const labels = [1, -1, 1, 1, -1, 1, -1, -1, 1, -1];
     const sb = V.svg(root.querySelector('.bag'), W, H, 'Bagging: three trees built at the same time on random bags, then a vote');
     const so = V.svg(root.querySelector('.boost'), W, H, 'Boosting: trees built one after another, each focusing on earlier mistakes');
-    const cols = [80, 230, 380];
+    const cols = [W * 0.174, mid, W * 0.826];
+    const gap = V.pick(44, 30);   // room between a tree icon and the arrow to the next tree
 
     function dotRow(g, cx, cy, idx, sizes, rings = []) {
       const gap = 14, x0 = cx - ((idx.length - 1) * gap) / 2;
@@ -305,31 +317,32 @@
       V.el('path', { d: `M${x2},${y2} L${x2 - L * Math.cos(a - 0.45)},${y2 - L * Math.sin(a - 0.45)} L${x2 - L * Math.cos(a + 0.45)},${y2 - L * Math.sin(a + 0.45)} Z`, fill: 'var(--muted)' }, g);
     };
     const box = (g, cx, cy, label) => {
-      V.el('rect', { x: cx - 80, y: cy - 17, width: 160, height: 34, rx: 10, fill: 'var(--paper)', stroke: 'var(--ink-2)' }, g);
+      const bw = Math.min(W - 8, Math.max(160, label.length * 7.8 + 28));   // wide enough for its words
+      V.el('rect', { x: cx - bw / 2, y: cy - 17, width: bw, height: 34, rx: 10, fill: 'var(--paper)', stroke: 'var(--ink-2)' }, g);
       V.text(g, cx, cy + 5, label, { class: 'lbl-strong', 'text-anchor': 'middle' });
     };
     const all = [...labels.keys()];
 
     // --- bagging
     const b0 = V.el('g', {}, sb), b1 = V.el('g', { class: 'ghost' }, sb), b2 = V.el('g', { class: 'ghost' }, sb);
-    V.text(b0, 230, 16, 'all the data', { class: 'lbl-sm', 'text-anchor': 'middle' });
-    dotRow(b0, 230, 32, all);
+    V.text(b0, mid, 16, 'all the data', { class: 'lbl-sm', 'text-anchor': 'middle' });
+    dotRow(b0, mid, 32, all);
     const bags = [[0, 3, 3, 7, 9], [1, 2, 5, 5, 8], [0, 4, 6, 6, 9]];
     cols.forEach((cx, k) => {
-      arrow(b1, 230, 42, cx, 66);
+      arrow(b1, mid, 42, cx, 66);
       V.text(b1, cx, 80, `random bag ${k + 1}`, { class: 'lbl-sm', 'text-anchor': 'middle' });
       dotRow(b1, cx, 96, bags[k]);
       tree(b1, cx, 150, `Tree ${k + 1}`);
-      arrow(b2, cx, 196, 230, 236);
+      arrow(b2, cx, 196, mid, 236);
     });
-    box(b2, 230, 254, 'Vote / average');
-    V.text(b2, 230, 300, 'final answer ✓', { class: 'lbl', 'text-anchor': 'middle' });
+    box(b2, mid, 254, 'Vote / average');
+    V.text(b2, mid, 300, 'final answer ✓', { class: 'lbl', 'text-anchor': 'middle' });
 
     // --- boosting
     const o0 = V.el('g', {}, so);
     const oc = cols.map(() => V.el('g', { class: 'ghost' }, so));
     const o4 = V.el('g', { class: 'ghost' }, so);
-    V.text(o0, 230, 16, 'same data every time, but dots grow when they were missed', { class: 'lbl-sm', 'text-anchor': 'middle' });
+    V.text(o0, mid, 16, V.pick('same data every time, but dots grow when they were missed', 'same data, but missed dots grow'), { class: 'lbl-sm', 'text-anchor': 'middle' });
     const sizes = [
       all.map(() => 4),
       all.map((k) => ([2, 5].includes(k) ? 6.5 : 3)),
@@ -342,11 +355,11 @@
       dotRow(oc[k], cx, 46, idx, idx.map((i) => sizes[k][i]), missed[k]);
       tree(oc[k], cx, 118, `Tree ${k + 1}`);
       V.text(oc[k], cx, 176, missed[k].length ? `missed ${missed[k].length} (circled)` : 'missed 0', { class: 'lbl-sm', 'text-anchor': 'middle' });
-      if (k < 2) arrow(oc[k + 1], cx + 44, 118, cols[k + 1] - 44, 118);
-      arrow(o4, cx, 190, 230, 236);
+      if (k < 2) arrow(oc[k + 1], cx + gap, 118, cols[k + 1] - gap, 118);
+      arrow(o4, cx, 190, mid, 236);
     });
-    box(o4, 230, 254, 'Add up (good trees count more)');
-    V.text(o4, 230, 300, 'final answer ✓', { class: 'lbl', 'text-anchor': 'middle' });
+    box(o4, mid, 254, 'Add up (good trees count more)');
+    V.text(o4, mid, 300, 'final answer ✓', { class: 'lbl', 'text-anchor': 'middle' });
 
     const say = [
       'Press Step. Watch how each team is built.',

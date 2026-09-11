@@ -27,7 +27,7 @@
     const MAX = 60;
     let data, model, accs, view = 'team', f;
 
-    const W = 520, H = 460;
+    const W = V.pick(520, 340), H = V.pick(460, 320);
     const s = V.svg(root.querySelector('.plot'), W, H, 'Dots whose size shows their weight, with straight cuts from each helper');
     const bg = V.el('g', {}, s);
     const axG = V.el('g', {}, s);
@@ -46,7 +46,8 @@
     const sAl = V.svg('#ada-alpha-chart', aw, 120, 'Vote power of each helper, one bar per round');
     const alphaG = V.el('g', {}, sAl);
 
-    function radius(w, n) { return V.clamp(2.6 + Math.sqrt(w * n) * 3.4, 2.6, 17); }
+    const dotScale = V.pick(1, 0.8);   // smaller plot on phones, so slightly smaller dots
+    function radius(w, n) { return dotScale * V.clamp(2.6 + Math.sqrt(w * n) * 3.4, 2.6, 17); }
 
     function setup(name) {
       data = DATA[name]();
@@ -181,7 +182,7 @@
   (function alphaViz() {
     const root = document.getElementById('alpha-viz');
     const alpha = (e) => 0.5 * Math.log((1 - e) / e);
-    const W = 520, H = 320;
+    const W = V.pick(520, 340), H = V.pick(320, 260);
     const s = V.svg(root.querySelector('.plot'), W, H, 'Vote power alpha for every error from 0 to 1');
     const f = V.frame({ W, H, m: { t: 18, r: 16, b: 38, l: 42 }, x: [0, 1], y: [-2.5, 2.5] });
     V.el('rect', { x: f.left, y: f.top, width: f.sx(0.5) - f.left, height: f.ih, fill: 'var(--c3-wash)' }, s);
